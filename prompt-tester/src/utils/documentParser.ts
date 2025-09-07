@@ -1,8 +1,6 @@
-import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+// Note: pdf-parse doesn't work in browser environment, so we'll implement a simpler approach
 
 export interface ParsedDocument {
   content: string;
@@ -10,24 +8,51 @@ export interface ParsedDocument {
     pageCount?: number;
     wordCount?: number;
     title?: string;
+    lineCount?: number;
+    expectedColumns?: number;
+    validatedRows?: number;
+    warnings?: string[];
+    truncated?: boolean;
+    truncatedAt?: number;
   };
 }
 
 export class DocumentParser {
   
   static async parseFile(file: File): Promise<ParsedDocument> {
-    const fileExtension = file.name.toLowerCase().split('.').pop() || '';
+    console.log('DocumentParser.parseFile called with:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+    
+    try {
+      // Check file size (limit to 10MB for CSV/large text files, 50MB for others)
+      const fileExtension = file.name.toLowerCase().split('.').pop() || '';
+      console.log('File extension:', fileExtension);
+      
+      const maxSize = ['csv', 'json', 'xml'].includes(fileExtension) 
+        ? 10 * 1024 * 1024  // 10MB for data files
+        : 50 * 1024 * 1024; // 50MB for other files
+        
+      if (file.size > maxSize) {
+        const limitMB = maxSize / 1024 / 1024;
+        throw new Error(`File too large (${Math.round(file.size / 1024 / 1024)}MB). Please use files smaller than ${limitMB}MB for .${fileExtension} files.`);
+      }
+      
+      console.log('File size check passed, proceeding with parsing...');
     
     switch (fileExtension) {
       case 'pdf':
-        return this.parsePDF(file);
+        throw new Error(`PDF parsing is temporarily disabled due to browser compatibility issues. Please convert your PDF to a text file (.txt) or Word document (.docx) and upload that instead.`);
       case 'doc':
       case 'docx':
         return this.parseWord(file);
+      case 'csv':
+        return this.parseCSV(file);
       case 'txt':
       case 'md':
       case 'json':
-      case 'csv':
       case 'js':
       case 'ts':
       case 'jsx':
@@ -41,55 +66,132 @@ export class DocumentParser {
       case 'xml':
       case 'yaml':
       case 'yml':
+        console.log('Calling parseText for file:', file.name);
         return this.parseText(file);
       default:
         throw new Error(`Unsupported file type: .${fileExtension}`);
     }
-  }
-
-  private static async parseText(file: File): Promise<ParsedDocument> {
-    const content = await this.readFileAsText(file);
-    return {
-      content,
-      metadata: {
-        wordCount: content.split(/\s+/).length
-      }
-    };
-  }
-
-  private static async parsePDF(file: File): Promise<ParsedDocument> {
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-      
-      let fullText = '';
-      
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        const page = await pdf.getPage(pageNum);
-        const textContent = await page.getTextContent();
-        
-        const pageText = textContent.items
-          .map((item: any) => item.str)
-          .join(' ');
-        
-        fullText += pageText + '\n\n';
-      }
-      
-      return {
-        content: fullText.trim(),
-        metadata: {
-          pageCount: pdf.numPages,
-          wordCount: fullText.split(/\s+/).length
-        }
-      };
     } catch (error) {
-      throw new Error(`Failed to parse PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('DocumentParser.parseFile error:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(`Unknown error parsing file: ${error}`);
     }
   }
 
+  private static async parseText(file: File): Promise<ParsedDocument> {
+    console.log('parseText called for:', file.name);
+    try {
+      const content = await this.readFileAsText(file);
+      console.log('parseText: content read successfully, length:', content.length);
+      
+      const wordCount = content.split(/\s+/).length;
+      console.log('parseText: calculated word count:', wordCount);
+      
+      return {
+        content,
+        metadata: {
+          wordCount
+        }
+      };
+    } catch (error) {
+      console.error('parseText error:', error);
+      throw error;
+    }
+  }
+
+  private static async parseCSV(file: File): Promise<ParsedDocument> {
+    try {
+      const content = await this.readFileAsText(file);
+      
+      // For large CSV files, we might want to limit the content
+      const lines = content.split('\n').filter(line => line.trim() !== ''); // Remove empty lines
+      const maxLines = 1000; // Limit to first 1000 lines for very large CSVs
+      
+      let processedContent = content;
+      let metadata: any = {
+        wordCount: content.split(/\s+/).length,
+        lineCount: lines.length
+      };
+      
+      // Validate CSV structure
+      if (lines.length > 0) {
+        const headerLine = lines[0];
+        const expectedColumns = this.countCSVColumns(headerLine);
+        
+        // Check for inconsistent column counts
+        const inconsistentRows: number[] = [];
+        for (let i = 1; i < Math.min(lines.length, 100); i++) { // Check first 100 rows
+          const rowColumns = this.countCSVColumns(lines[i]);
+          if (rowColumns !== expectedColumns) {
+            inconsistentRows.push(i + 1); // 1-based line numbers
+          }
+        }
+        
+        if (inconsistentRows.length > 0) {
+          console.warn(`CSV has inconsistent column counts in rows: ${inconsistentRows.slice(0, 10).join(', ')}${inconsistentRows.length > 10 ? '...' : ''}`);
+          metadata.warnings = [`CSV has inconsistent column counts in ${inconsistentRows.length} rows`];
+        }
+        
+        metadata.expectedColumns = expectedColumns;
+        metadata.validatedRows = Math.min(lines.length, 100);
+      }
+      
+      if (lines.length > maxLines) {
+        processedContent = lines.slice(0, maxLines).join('\n') + 
+          `\n\n... (truncated after ${maxLines} lines out of ${lines.length} total)`;
+        metadata.truncated = true;
+        metadata.truncatedAt = maxLines;
+      }
+      
+      return {
+        content: processedContent,
+        metadata
+      };
+    } catch (error) {
+      // Provide more specific error messages based on the error type
+      let errorMessage = 'Unknown error';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Invalid array length')) {
+          errorMessage = 'CSV file has inconsistent row lengths. Some rows have more or fewer columns than expected.';
+        } else if (error.message.includes('File reading error')) {
+          errorMessage = 'Could not read the CSV file. The file may be corrupted or in an unsupported encoding.';
+        } else if (error.message.includes('File too large')) {
+          errorMessage = error.message; // Keep the original size error message
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      throw new Error(`Failed to parse CSV: ${errorMessage}. Try saving the CSV as a .txt file instead, or check that the CSV file is properly formatted.`);
+    }
+  }
+
+  private static countCSVColumns(line: string): number {
+    // Simple CSV column counting that handles quoted fields
+    let inQuotes = false;
+    let columnCount = 1;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        columnCount++;
+      }
+    }
+    
+    return columnCount;
+  }
+
+
   private static async parseWord(file: File): Promise<ParsedDocument> {
     try {
-      const arrayBuffer = await file.arrayBuffer();
+      // Use FileReader instead of file.arrayBuffer() for better compatibility
+      const arrayBuffer = await this.readFileAsArrayBuffer(file);
       const result = await mammoth.extractRawText({ arrayBuffer });
       
       return {
@@ -105,22 +207,76 @@ export class DocumentParser {
 
   private static readFileAsText(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
+      // Add debugging
+      console.log('Attempting to read file:', {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: file.lastModified
+      });
+
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        console.log('FileReader onload event:', e.target?.result?.constructor.name);
+        if (e.target?.result) {
+          const result = e.target.result as string;
+          console.log('Successfully read file, content length:', result.length);
+          resolve(result);
+        } else {
+          console.error('FileReader onload: no result');
+          reject(new Error('Failed to read file - no result'));
+        }
+      };
+      
+      reader.onerror = (error) => {
+        console.error('FileReader error event:', error);
+        reject(new Error(`File reading error: ${JSON.stringify(error)}`));
+      };
+      
+      reader.onabort = () => {
+        console.error('FileReader aborted');
+        reject(new Error('File reading was aborted'));
+      };
+      
+      try {
+        console.log('Starting FileReader.readAsText...');
+        reader.readAsText(file, 'UTF-8');
+      } catch (error) {
+        console.error('Failed to start FileReader:', error);
+        reject(new Error(`Failed to start file reading: ${error}`));
+      }
+    });
+  }
+
+  private static readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         if (e.target?.result) {
-          resolve(e.target.result as string);
+          resolve(e.target.result as ArrayBuffer);
         } else {
           reject(new Error('Failed to read file'));
         }
       };
-      reader.onerror = () => reject(new Error('File reading error'));
-      reader.readAsText(file);
+      reader.onerror = (error) => {
+        console.error('FileReader error:', error);
+        reject(new Error(`File reading error: ${error}`));
+      };
+      reader.onabort = () => reject(new Error('File reading was aborted'));
+      
+      try {
+        reader.readAsArrayBuffer(file);
+      } catch (error) {
+        reject(new Error(`Failed to start file reading: ${error}`));
+      }
     });
   }
 
+
   static getSupportedExtensions(): string[] {
     return [
-      'pdf', 'doc', 'docx', 'txt', 'md', 'json', 'csv',
+      'doc', 'docx', 'txt', 'md', 'json', 'csv',
       'js', 'ts', 'jsx', 'tsx', 'py', 'java', 'cpp', 'c',
       'html', 'css', 'xml', 'yaml', 'yml'
     ];

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { SavedDocument } from './types';
 import { DocumentService, DocumentServiceConfig } from './documentService';
+import { DocumentParser } from './utils/documentParser';
 
 interface DocumentManagerProps {
   isOpen: boolean;
@@ -44,28 +45,31 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const readFileContent = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          resolve(e.target.result as string);
-        } else {
-          reject(new Error('Failed to read file'));
-        }
-      };
-      reader.onerror = () => reject(new Error('File reading error'));
-      reader.readAsText(file);
-    });
+  const getSupportedFileInfo = () => {
+    const extensions = DocumentParser.getSupportedExtensions();
+    const categories = {
+      'Documents': ['doc', 'docx', 'txt', 'md'],
+      'Data': ['json', 'csv', 'xml', 'yaml', 'yml'],
+      'Code': ['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'cpp', 'c', 'html', 'css']
+    };
+    
+    return { extensions, categories };
   };
 
   const handleFileUpload = async (files: FileList) => {
+    console.log('=== DOCUMENT UPLOAD START ===');
+    console.log('Files selected:', Array.from(files).map(f => ({ name: f.name, size: f.size, type: f.type })));
+    
     if (!documentConfig) {
+      console.error('Document config is null/undefined:', documentConfig);
       setError('Document service not configured. Please check your Pinecone settings.');
       return;
     }
 
+    console.log('Document config:', documentConfig);
+
     const validation = documentService.validateConfig();
+    console.log('Config validation result:', validation);
     if (!validation.isValid) {
       setError(`Configuration error: ${validation.errors.join(', ')}`);
       return;
@@ -75,36 +79,80 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
     
     for (const file of Array.from(files)) {
       const fileId = `${Date.now()}_${file.name}`;
+      console.log(`\n=== PROCESSING FILE: ${file.name} ===`);
+      console.log('File ID:', fileId);
+      
+      // Check if file type is supported
+      console.log('Checking if file type is supported...');
+      if (!DocumentParser.isSupported(file.name)) {
+        console.error('Unsupported file type:', file.name);
+        setError(`Unsupported file type: ${file.name}. Please upload supported document formats.`);
+        continue;
+      }
+      console.log('File type is supported');
       
       try {
+        console.log('Setting file as uploading...');
         setUploadingDocuments(prev => new Set(prev).add(fileId));
-        setProcessingStatus(`Reading ${file.name}...`);
+        setProcessingStatus(`Parsing ${file.name}...`);
+        console.log('Status updated to parsing');
 
-        const content = await readFileContent(file);
+        console.log('=== CALLING DOCUMENT PARSER ===');
+        const parsedDoc = await DocumentParser.parseFile(file);
+        console.log('Document parsed successfully:', {
+          contentLength: parsedDoc.content.length,
+          metadata: parsedDoc.metadata
+        });
         
+        console.log('Setting status to processing...');
         setProcessingStatus(`Processing ${file.name}...`);
 
+        console.log('Creating document object...');
         const document: SavedDocument = {
           id: fileId,
           name: file.name,
-          content,
+          content: parsedDoc.content,
           pineconeId: fileId,
           chunks: [], // Will be populated during indexing
           createdAt: Date.now(),
           lastModified: Date.now(),
-          fileType: file.type || 'text/plain',
+          fileType: file.type || 'application/octet-stream',
           fileSize: file.size
         };
+        console.log('Document object created:', {
+          id: document.id,
+          name: document.name,
+          contentLength: document.content.length,
+          fileType: document.fileType,
+          fileSize: document.fileSize
+        });
+
+        // Check for CSV warnings and show them to the user
+        if (parsedDoc.metadata.warnings && parsedDoc.metadata.warnings.length > 0) {
+          console.warn(`CSV warnings for ${file.name}:`, parsedDoc.metadata.warnings);
+          // Don't treat warnings as errors, but log them
+        }
 
         // Save to local storage first
+        console.log('=== SAVING TO LOCAL STORAGE ===');
         documentService.saveDocument(document);
+        console.log('Document saved to local storage');
         
+        console.log('Setting status to indexing...');
         setProcessingStatus(`Indexing ${file.name} to vector database...`);
 
         // Index to Pinecone
+        console.log('=== STARTING PINECONE INDEXING ===');
         await documentService.indexDocument(document);
+        console.log('=== PINECONE INDEXING COMPLETE ===');
         
-        setProcessingStatus(`${file.name} successfully uploaded and indexed!`);
+        const wordCount = parsedDoc.metadata.wordCount ? ` (${parsedDoc.metadata.wordCount} words)` : '';
+        const pageCount = parsedDoc.metadata.pageCount ? ` (${parsedDoc.metadata.pageCount} pages)` : '';
+        const lineCount = parsedDoc.metadata.lineCount ? ` (${parsedDoc.metadata.lineCount} lines)` : '';
+        const csvInfo = parsedDoc.metadata.expectedColumns ? ` (${parsedDoc.metadata.expectedColumns} columns)` : '';
+        const warningInfo = parsedDoc.metadata.warnings ? ' - Note: CSV has some formatting issues but was processed' : '';
+        
+        setProcessingStatus(`${file.name} successfully uploaded and indexed!${wordCount}${pageCount}${lineCount}${csvInfo}${warningInfo}`);
         
         refreshDocuments();
       } catch (error) {
@@ -166,14 +214,28 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
           <div className="current-prompt-section">
             <div className="current-prompt-info">
               <h3>Upload Documents</h3>
-              <p>Upload text files to create a knowledge base for RAG-enhanced prompt generation.</p>
+              <p>Upload documents to create a knowledge base for RAG-enhanced prompt generation.</p>
+              <div className="supported-formats">
+                <strong>Supported formats:</strong>
+                <div className="format-categories">
+                  {Object.entries(getSupportedFileInfo().categories).map(([category, extensions]) => (
+                    <div key={category} className="format-category">
+                      <span className="category-name">{category}:</span>
+                      <span className="extensions">{extensions.map(ext => `.${ext}`).join(', ')}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="pdf-note">
+                  <strong>Note:</strong> PDF support is temporarily disabled. To upload PDF content, please convert your PDF to a .txt or .docx file first.
+                </div>
+              </div>
             </div>
             <div className="current-prompt-actions">
               <input
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept=".txt,.md,.json,.csv"
+                accept={DocumentParser.getAcceptString()}
                 style={{ display: 'none' }}
                 onChange={(e) => {
                   if (e.target.files) {

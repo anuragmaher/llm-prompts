@@ -1352,3 +1352,52 @@ body {
 .error-dismiss:hover {
   color: #fca5a5;
 }
+
+.supported-formats {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.supported-formats strong {
+  color: #ffffff;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.format-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.format-category {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.category-name {
+  color: #60a5fa;
+  font-weight: 500;
+  min-width: 80px;
+}
+
+.extensions {
+  color: #a0a0a0;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+
+.pdf-note {
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  border-radius: 4px;
+  font-size: 12px;
+  color: #fbbf24;
+}
