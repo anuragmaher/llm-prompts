@@ -6,258 +6,22 @@ import PromptManager from './PromptManager';
 import VariableManager from './VariableManager';
 import EvaluationPanel from './EvaluationPanel';
 import { EvaluationConfig, OverallEvaluation } from './evaluationService';
+import { SavedPrompt, SavedVariableSet } from './types';
+import { DEFAULT_PROMPT, DEFAULT_VARIABLES, getPredefinedVariableSets, NEW_PROMPT_TEMPLATE, NEW_VARIABLES_TEMPLATE } from './constants/defaults';
+import { substituteVariables as substituteVariablesUtil } from './utils/templating';
+import VariablesPanel from './components/VariablesPanel';
+import PromptPanel from './components/PromptPanel';
+import ProcessedPromptPanel from './components/ProcessedPromptPanel';
+import JsonPayloadPanel from './components/JsonPayloadPanel';
+import LlmResponsePanel from './components/LlmResponsePanel';
 
-// Predefined variable sets for first-time users
-const getPredefinedVariableSets = (): SavedVariableSet[] => {
-  const baseTimestamp = Date.now();
-  return [
-    {
-      id: 'meeting-reschedule',
-      name: 'Meeting Reschedule Request',
-      variables: JSON.stringify({
-        "agent_info": {
-          "name": "Sarah Chen",
-          "role": "Product Manager"
-        },
-        "email_thread": [
-          {
-            "from": "Michael Rodriguez <michael.r@clientfirm.com>",
-            "to": "Sarah Chen <sarah.chen@techcorp.com>",
-            "content": "Hi Sarah, I need to reschedule our product demo meeting scheduled for Thursday 2pm. Something urgent came up. Can we move it to next week?"
-          }
-        ],
-        "chat_history": "Client has been very engaged in our product discussions and this is a high-priority demo for Q1 closing.",
-        "user_intent": "Accommodate the reschedule request professionally and propose 3 specific time slots next week"
-      }, null, 2),
-      createdAt: baseTimestamp - 600000,
-      lastModified: baseTimestamp - 600000
-    },
-    {
-      id: 'project-status',
-      name: 'Project Status Update',
-      variables: JSON.stringify({
-        "agent_info": {
-          "name": "David Park",
-          "role": "Engineering Lead"
-        },
-        "email_thread": [
-          {
-            "from": "Lisa Thompson <lisa.t@startup.io>",
-            "to": "David Park <david.park@devstudio.com>",
-            "content": "Hey David, haven't heard updates on the mobile app development in a while. How are we tracking against the March 15th deadline? Any blockers I should know about?"
-          }
-        ],
-        "chat_history": "Project is 85% complete, slightly behind due to API integration challenges, but still on track for deadline.",
-        "user_intent": "Provide honest status update with timeline reassurance and mention one current blocker"
-      }, null, 2),
-      createdAt: baseTimestamp - 540000,
-      lastModified: baseTimestamp - 540000
-    },
-    {
-      id: 'budget-approval',
-      name: 'Budget Approval Request',
-      variables: JSON.stringify({
-        "agent_info": {
-          "name": "Jennifer Walsh",
-          "role": "Marketing Director"
-        },
-        "email_thread": [
-          {
-            "from": "Robert Kim <robert.kim@headquarters.com>",
-            "to": "Jennifer Walsh <j.walsh@marketingplus.com>",
-            "content": "Jennifer, I received your budget proposal for the Q2 campaign. The numbers seem high - can you break down the $75K request and justify the ROI projections?"
-          }
-        ],
-        "chat_history": "Budget includes $30K for paid ads, $25K for content creation, $20K for events - all backed by historical performance data.",
-        "user_intent": "Provide detailed budget breakdown with ROI justification and offer to schedule a call for discussion"
-      }, null, 2),
-      createdAt: baseTimestamp - 480000,
-      lastModified: baseTimestamp - 480000
-    },
-    {
-      id: 'customer-complaint',
-      name: 'Customer Complaint Resolution',
-      variables: JSON.stringify({
-        "agent_info": {
-          "name": "Amanda Foster",
-          "role": "Customer Success Manager"
-        },
-        "email_thread": [
-          {
-            "from": "Angry Customer <john.davis@businessclient.com>",
-            "to": "Amanda Foster <amanda.foster@customercare.com>",
-            "content": "This is unacceptable! Your software crashed during our live presentation to investors. We lost a potential $2M deal because of this. I want immediate answers and compensation!"
-          }
-        ],
-        "chat_history": "Incident occurred during high-traffic period, technical team identified root cause as server overload, fix deployed.",
-        "user_intent": "Apologize sincerely, explain root cause, offer compensation, and outline prevention measures"
-      }, null, 2),
-      createdAt: baseTimestamp - 420000,
-      lastModified: baseTimestamp - 420000
-    },
-    {
-      id: 'job-interview',
-      name: 'Job Interview Scheduling',
-      variables: JSON.stringify({
-        "agent_info": {
-          "name": "Marcus Johnson",
-          "role": "HR Business Partner"
-        },
-        "email_thread": [
-          {
-            "from": "Emma Wilson <emma.wilson.dev@gmail.com>",
-            "to": "Marcus Johnson <marcus.johnson@hiringfirm.com>",
-            "content": "Hi Marcus, thank you for considering my application for the Senior React Developer position. I'm excited about the opportunity and available for interviews next week."
-          }
-        ],
-        "chat_history": "Candidate has strong background, passed initial screening, ready for technical interview with engineering team.",
-        "user_intent": "Schedule technical interview, explain interview process, and set expectations for next steps"
-      }, null, 2),
-      createdAt: baseTimestamp - 360000,
-      lastModified: baseTimestamp - 360000
-    },
-    {
-      id: 'partnership-proposal',
-      name: 'Partnership Proposal Follow-up',
-      variables: JSON.stringify({
-        "agent_info": {
-          "name": "Rachel Green",
-          "role": "Business Development Director"
-        },
-        "email_thread": [
-          {
-            "from": "Tom Anderson <t.anderson@partnertech.com>",
-            "to": "Rachel Green <rachel.green@bizdev.com>",
-            "content": "Rachel, we've reviewed your partnership proposal internally. The terms look interesting but we have some concerns about the revenue sharing model. Can we discuss modifications?"
-          }
-        ],
-        "chat_history": "Initial proposal was 60/40 split, they want to negotiate to 70/30, we have some flexibility but need to maintain minimum margins.",
-        "user_intent": "Show flexibility on terms while protecting key business interests and suggest a meeting to discuss details"
-      }, null, 2),
-      createdAt: baseTimestamp - 300000,
-      lastModified: baseTimestamp - 300000
-    },
-    {
-      id: 'event-planning',
-      name: 'Event Planning Coordination',
-      variables: JSON.stringify({
-        "agent_info": {
-          "name": "Alex Rodriguez",
-          "role": "Event Coordinator"
-        },
-        "email_thread": [
-          {
-            "from": "Corporate Client <events@bigcorp.com>",
-            "to": "Alex Rodriguez <alex.rodriguez@eventspro.com>",
-            "content": "Alex, we need to finalize details for the annual conference next month. 500 attendees confirmed. Need updates on catering, AV setup, and speaker arrangements."
-          }
-        ],
-        "chat_history": "Catering confirmed for 500+50 buffer, AV team scheduled for setup day before, 2 keynote speakers confirmed, 1 still pending.",
-        "user_intent": "Provide comprehensive status update on all event elements and request final headcount confirmation"
-      }, null, 2),
-      createdAt: baseTimestamp - 240000,
-      lastModified: baseTimestamp - 240000
-    },
-    {
-      id: 'vendor-negotiation',
-      name: 'Vendor Negotiation',
-      variables: JSON.stringify({
-        "agent_info": {
-          "name": "Kevin Liu",
-          "role": "Procurement Manager"
-        },
-        "email_thread": [
-          {
-            "from": "Supplier Rep <sales@supplierco.com>",
-            "to": "Kevin Liu <kevin.liu@procurement.com>",
-            "content": "Kevin, we've prepared a new quote based on your volume requirements. The pricing is $12 per unit for 10K units, with 30-day payment terms. This is our best offer."
-          }
-        ],
-        "chat_history": "Market rate is $10-11 per unit, we need 15-day payment terms to match cash flow, relationship is important for future orders.",
-        "user_intent": "Negotiate price down to $10.50 per unit and request 15-day payment terms while maintaining positive relationship"
-      }, null, 2),
-      createdAt: baseTimestamp - 180000,
-      lastModified: baseTimestamp - 180000
-    },
-    {
-      id: 'product-launch',
-      name: 'Product Launch Announcement',
-      variables: JSON.stringify({
-        "agent_info": {
-          "name": "Priya Patel",
-          "role": "Product Marketing Manager"
-        },
-        "email_thread": [
-          {
-            "from": "Industry Reporter <news@techdaily.com>",
-            "to": "Priya Patel <priya.patel@innovation.com>",
-            "content": "Hi Priya, heard rumors about your new AI-powered analytics platform launching next month. Can you share any details for our upcoming feature story on emerging business intelligence tools?"
-          }
-        ],
-        "chat_history": "Launch is March 1st, key features include real-time analytics, predictive modeling, and 50% faster processing than competitors.",
-        "user_intent": "Share exciting product details while maintaining some mystery and offer exclusive interview opportunity"
-      }, null, 2),
-      createdAt: baseTimestamp - 120000,
-      lastModified: baseTimestamp - 120000
-    },
-    {
-      id: 'crisis-communication',
-      name: 'Crisis Communication',
-      variables: JSON.stringify({
-        "agent_info": {
-          "name": "Victoria Chang",
-          "role": "Communications Director"
-        },
-        "email_thread": [
-          {
-            "from": "Board Member <james.wilson@boardmember.com>",
-            "to": "Victoria Chang <victoria.chang@corpcomms.com>",
-            "content": "Victoria, the data breach news is spreading on social media. We need a clear communication strategy before the press picks this up. What's our response plan?"
-          }
-        ],
-        "chat_history": "Breach affected 1,000 users, no financial data compromised, security team contained it within 2 hours, all users notified.",
-        "user_intent": "Present clear crisis communication plan focusing on transparency, user safety, and steps taken to prevent future incidents"
-      }, null, 2),
-      createdAt: baseTimestamp - 60000,
-      lastModified: baseTimestamp - 60000
-    }
-  ];
-};
+// moved to constants/defaults.ts
 
-interface SavedPrompt {
-  id: string;
-  name: string;
-  prompt: string;
-  variables: string; // JSON string
-  createdAt: number;
-  lastModified: number;
-}
-
-interface SavedVariableSet {
-  id: string;
-  name: string;
-  variables: string; // JSON string
-  createdAt: number;
-  lastModified: number;
-}
+// types moved to src/types.ts
 
 function App() {
-  const [variables, setVariables] = useState<string>(JSON.stringify({
-    "agent_info": {
-      "name": "Anurag Maherchandani",
-      "role": "AI Leader"
-    },
-    "email_thread": [
-      {
-        "from": "Sarah Johnson <sarah.johnson@example.com>",
-        "to": "Anurag Maherchandani <anurag@grexit.com>",
-        "content": "Hi Anurag, just checking if we are still on for our meeting tomorrow at 10 AM?"
-      }
-    ],
-    "chat_history": "You previously confirmed 10 AM works and asked whether we'd use the west conference room.",
-    "user_intent": "Confirm the meeting time politely and express that you're looking forward to it."
-  }, null, 2));
-  const [prompt, setPrompt] = useState<string>('You are a helpful and precise email drafting assistant in a productivity copilot.\n\nYou will be given the following variables (injected at runtime):\n\n1. agent_info: {{agent_info}}\n   - Type: JSON object with agent details\n   - Contains: "name", "role" fields\n   - Use this to sign emails and provide context about the sender\n\n2. email_thread: {{email_thread}}\n   - Type: a JSON array (list) of up to 3 email messages\n   - Each message is an object with keys: "from", "to", "content"\n   - Example: [{"from":"Sarah Johnson <sarah@example.com>","to":"Agent <agent@example.com>","content":"Hi..."}]\n\n3. chat_history: "{{chat_history}}"\n   - Type: string\n   - Previous conversation context that may provide additional details for the email draft (optional)\n\n4. user_intent: "{{user_intent}}"\n   - Type: string\n   - A clear purpose and tone for the reply (e.g., "Confirm the meeting time politely and express enthusiasm")\n\n---\n\n### VALIDATION CONDITIONS\n\n1. User Intent should be clear:\n   - It should specify the purpose or goal of the reply.\n   - If intent is vague, missing, or ambiguous, DO NOT return an error. Use the fallback behavior below.\n\n2. Chat History is optional:\n   - Can be empty, brief, or contain meaningful context\n   - Will be used if provided to enhance the email draft\n\n---\n\n### OUTPUT INSTRUCTIONS\n\n- If `user_intent` is clear:\n    - Generate a concise, professional email draft using all provided variables\n    - Sign the email with the agent name from `agent_info`\n    - Return only the email draft text (no extra metadata)\n\n- If `user_intent` is missing, unclear, or ambiguous:\n    - Infer and propose exactly 5 candidate intents based on `email_thread` and `chat_history`.\n    - Return ONLY a JSON array of 5 short strings, ordered most likely to least likely.\n    - Do not include any additional commentary or keys. Example format:\n\n```json\n[\n  "Confirm the meeting time and request an agenda",\n  "Reschedule the meeting to next week",\n  "Share a concise project status update",\n  "Acknowledge the complaint and outline next steps",\n  "Introduce the new product and request a call"\n]\n```\n\n');
+  const [variables, setVariables] = useState<string>(DEFAULT_VARIABLES);
+  const [prompt, setPrompt] = useState<string>(DEFAULT_PROMPT);
   const [processedPrompt, setProcessedPrompt] = useState<string>('');
   const [llmResponse, setLlmResponse] = useState<string>('');
   const [firstByteTime, setFirstByteTime] = useState<number | null>(null);
@@ -464,8 +228,8 @@ function App() {
   }, [savedPrompts, currentPromptId, savePromptsToStorage]);
 
   const createNewPrompt = useCallback(() => {
-    setPrompt('Enter your prompt here. Use {{variable_name}} syntax for variables.\n\nExample:\n- Use {{email_thread}} for email data\n- Use {{user_intent}} for instructions\n- Use {{context}} for additional information');
-    setVariables('{\n  "email_thread": [\n    {\n      "from": "sender@example.com",\n      "to": "you@example.com",\n      "content": "Email content here"\n    }\n  ],\n  "user_intent": "Your instruction here",\n  "context": "Additional context"\n}');
+    setPrompt(NEW_PROMPT_TEMPLATE);
+    setVariables(NEW_VARIABLES_TEMPLATE);
     setCurrentPromptId(null);
     setProcessedPrompt('');
     setLlmResponse('');
@@ -511,7 +275,7 @@ function App() {
   }, [savedVariableSets, currentVariableSetId, saveVariableSetsToStorage]);
 
   const createNewVariableSet = useCallback(() => {
-    setVariables('{\n  "email_thread": [\n    {\n      "from": "sender@example.com",\n      "to": "you@example.com",\n      "content": "Email content here"\n    }\n  ],\n  "user_intent": "Your instruction here",\n  "context": "Additional context"\n}');
+    setVariables(NEW_VARIABLES_TEMPLATE);
     setCurrentVariableSetId(null);
     setProcessedPrompt('');
     setLlmResponse('');
@@ -519,8 +283,8 @@ function App() {
 
   // Detect if current prompt has unsaved changes
   const hasUnsavedChanges = useCallback(() => {
-    const defaultTemplate = 'Enter your prompt here. Use {{variable_name}} syntax for variables.\n\nExample:\n- Use {{email_thread}} for email data\n- Use {{user_intent}} for instructions\n- Use {{context}} for additional information';
-    const defaultVars = '{\n  "email_thread": [\n    {\n      "from": "sender@example.com",\n      "to": "you@example.com",\n      "content": "Email content here"\n    }\n  ],\n  "user_intent": "Your instruction here",\n  "context": "Additional context"\n}';
+    const defaultTemplate = NEW_PROMPT_TEMPLATE;
+    const defaultVars = NEW_VARIABLES_TEMPLATE;
     
     if (!currentPromptId) return prompt !== defaultTemplate || variables !== defaultVars;
     
@@ -556,21 +320,7 @@ function App() {
 
 
   const substituteVariables = useCallback((text: string): string => {
-    try {
-      const variableData = JSON.parse(variables);
-      let result = text;
-      
-      Object.entries(variableData).forEach(([key, value]) => {
-        const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-        // Convert value to appropriate string representation
-        const stringValue = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-        result = result.replace(regex, stringValue);
-      });
-      
-      return result;
-    } catch (error) {
-      return text + '\n\n[ERROR: Invalid JSON in variables]';
-    }
+    return substituteVariablesUtil(text, variables);
   }, [variables]);
 
   const executePrompt = useCallback(async () => {
@@ -658,46 +408,14 @@ function App() {
         className={`left-panel ${collapsedSections.variables ? 'collapsed' : ''}`}
         style={{ width: collapsedSections.variables ? 'auto' : `${leftPanelWidth}px` }}
       >
-        <div className="panel-header">
-          <span>Variables (JSON) {hasUnsavedVariableChanges() && '●'}</span>
-          <div className="header-actions">
-            <button 
-              className="variable-manager-btn"
-              onClick={() => setShowVariableManager(true)}
-            >
-              📊 Variables
-            </button>
-            <button 
-              className="collapse-btn"
-              onClick={() => toggleSection('variables')}
-              title={collapsedSections.variables ? 'Expand Variables' : 'Collapse Variables'}
-            >
-              {collapsedSections.variables ? '▶' : '▼'}
-            </button>
-          </div>
-        </div>
-        {!collapsedSections.variables && (
-        <div className="panel-content">
-          <div className="json-editor-container">
-            <textarea
-              className="json-editor"
-              value={variables}
-              onChange={(e) => setVariables(e.target.value)}
-              placeholder='{\n  "variable_name": "value",\n  "array_example": ["item1", "item2"],\n  "object_example": {\n    "nested": "value"\n  }\n}'
-            />
-            <div className="json-validation">
-              {(() => {
-                try {
-                  JSON.parse(variables);
-                  return <span className="json-valid">✓ Valid JSON</span>;
-                } catch (error) {
-                  return <span className="json-invalid">⚠ Invalid JSON: {(error as Error).message}</span>;
-                }
-              })()}
-            </div>
-          </div>
-        </div>
-        )}
+        <VariablesPanel
+          variables={variables}
+          onVariablesChange={setVariables}
+          collapsed={collapsedSections.variables}
+          onToggle={() => toggleSection('variables')}
+          hasUnsaved={hasUnsavedVariableChanges()}
+          onOpenManager={() => setShowVariableManager(true)}
+        />
       </div>
 
       {!collapsedSections.variables && (
@@ -708,112 +426,39 @@ function App() {
       )}
 
       <div className="right-panel">
-        <div className={`prompt-panel ${collapsedSections.prompt ? 'collapsed' : ''}`}>
-          <div className="panel-header">
-            <span>Prompt Template</span>
-            <div className="header-actions">
-              <button 
-                className="collapse-btn"
-                onClick={() => toggleSection('prompt')}
-                title={collapsedSections.prompt ? 'Expand Prompt' : 'Collapse Prompt'}
-              >
-                {collapsedSections.prompt ? '▶' : '▼'}
-              </button>
-              <button 
-                className="prompt-manager-btn"
-                onClick={() => setShowPromptManager(true)}
-              >
-                📁 Prompts {hasUnsavedChanges() && '●'}
-              </button>
-              <button 
-                className="settings-btn"
-                onClick={() => setShowSettings(true)}
-              >
-                ⚙️ Settings
-              </button>
-              <button 
-                className="execute-button"
-                onClick={executePrompt}
-                disabled={isExecuting}
-              >
-                {isExecuting ? 'Executing...' : 'Execute'}
-              </button>
-            </div>
-          </div>
-          {!collapsedSections.prompt && (
-          <div className="panel-content">
-            <textarea
-              className="prompt-textarea"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Enter your prompt template here. Use {{variableName}} syntax for variables."
-            />
-          </div>
-          )}
-        </div>
+        <PromptPanel
+          prompt={prompt}
+          onPromptChange={setPrompt}
+          collapsed={collapsedSections.prompt}
+          onToggle={() => toggleSection('prompt')}
+          onOpenPromptManager={() => setShowPromptManager(true)}
+          hasUnsaved={hasUnsavedChanges()}
+          onOpenSettings={() => setShowSettings(true)}
+          onExecute={executePrompt}
+          isExecuting={isExecuting}
+        />
 
         <div className="output-panel">
           <div className="output-left">
-            <div className={`output-left-top ${collapsedSections.processedPrompt ? 'collapsed' : ''}`}>
-              <div className="panel-header">
-                <span>Processed Prompt</span>
-                <button 
-                  className="collapse-btn"
-                  onClick={() => toggleSection('processedPrompt')}
-                  title={collapsedSections.processedPrompt ? 'Expand Processed Prompt' : 'Collapse Processed Prompt'}
-                >
-                  {collapsedSections.processedPrompt ? '▶' : '▼'}
-                </button>
-              </div>
-              {!collapsedSections.processedPrompt && (
-              <div className="output-content prompt-output">
-                {processedPrompt || 'Click "Execute" to see your prompt with variables substituted.'}
-              </div>
-              )}
-            </div>
+            <ProcessedPromptPanel
+              content={processedPrompt}
+              collapsed={collapsedSections.processedPrompt}
+              onToggle={() => toggleSection('processedPrompt')}
+            />
             <div className={`output-left-bottom ${collapsedSections.jsonPayload ? 'collapsed' : ''}`}>
-              <div className="panel-header">
-                <span>JSON Payload</span>
-                <button 
-                  className="collapse-btn"
-                  onClick={() => toggleSection('jsonPayload')}
-                  title={collapsedSections.jsonPayload ? 'Expand JSON Payload' : 'Collapse JSON Payload'}
-                >
-                  {collapsedSections.jsonPayload ? '▶' : '▼'}
-                </button>
-              </div>
-              {!collapsedSections.jsonPayload && (
-              <div className="output-content json-payload">
-                {(() => {
-                  try {
-                    const parsedVars = JSON.parse(variables);
-                    return JSON.stringify(parsedVars, null, 2);
-                  } catch (error) {
-                    return 'Invalid JSON - fix variables to see payload';
-                  }
-                })()}
-              </div>
-              )}
+              <JsonPayloadPanel
+                variables={variables}
+                collapsed={collapsedSections.jsonPayload}
+                onToggle={() => toggleSection('jsonPayload')}
+              />
             </div>
           </div>
           <div className="output-right-container">
-            <div className={`output-right ${collapsedSections.llmResponse ? 'collapsed' : ''}`}>
-              <div className="panel-header">
-                <span>LLM Response</span>
-                <button 
-                  className="collapse-btn"
-                  onClick={() => toggleSection('llmResponse')}
-                  title={collapsedSections.llmResponse ? 'Expand LLM Response' : 'Collapse LLM Response'}
-                >
-                  {collapsedSections.llmResponse ? '▶' : '▼'}
-                </button>
-              </div>
-              {!collapsedSections.llmResponse && (
-              <div className="output-content response-output">
-                {llmResponse || 'The AI response will appear here after execution.'}
-              </div>
-              )}
-            </div>
+            <LlmResponsePanel
+              response={llmResponse}
+              collapsed={collapsedSections.llmResponse}
+              onToggle={() => toggleSection('llmResponse')}
+            />
             
             <div className="evaluation-container">
               <EvaluationPanel
