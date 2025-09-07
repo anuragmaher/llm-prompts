@@ -360,6 +360,27 @@ body {
   transform: translateY(-1px);
 }
 
+.variable-manager-btn {
+  background: rgba(40, 167, 69, 0.15);
+  color: #28a745;
+  border: 1px solid rgba(40, 167, 69, 0.3);
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.variable-manager-btn:hover {
+  background: rgba(40, 167, 69, 0.25);
+  border-color: rgba(40, 167, 69, 0.5);
+  transform: translateY(-1px);
+}
+
 .settings-overlay {
   position: fixed;
   top: 0;
