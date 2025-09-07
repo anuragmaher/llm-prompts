@@ -8,6 +8,7 @@ interface PromptPanelProps {
   onOpenPromptManager: () => void;
   hasUnsaved: boolean;
   onOpenSettings: () => void;
+  onOpenDocuments: () => void;
   onExecute: () => void;
   isExecuting: boolean;
 }
@@ -20,6 +21,7 @@ export default function PromptPanel({
   onOpenPromptManager,
   hasUnsaved,
   onOpenSettings,
+  onOpenDocuments,
   onExecute,
   isExecuting
 }: PromptPanelProps) {
@@ -40,6 +42,12 @@ export default function PromptPanel({
             onClick={onOpenPromptManager}
           >
             📁 Prompts {hasUnsaved && '●'}
+          </button>
+          <button 
+            className="documents-btn"
+            onClick={onOpenDocuments}
+          >
+            📚 Documents
           </button>
           <button 
             className="settings-btn"

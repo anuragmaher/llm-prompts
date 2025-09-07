@@ -15,4 +15,30 @@ export interface SavedVariableSet {
   lastModified: number;
 }
 
+export interface DocumentChunk {
+  id: string;
+  content: string;
+  pineconeId: string;
+  startIndex: number;
+  endIndex: number;
+}
+
+export interface SavedDocument {
+  id: string;
+  name: string;
+  content: string;
+  pineconeId: string;
+  chunks: DocumentChunk[];
+  createdAt: number;
+  lastModified: number;
+  fileType: string;
+  fileSize: number;
+}
+
+export interface RAGContext {
+  query: string;
+  relevantChunks: DocumentChunk[];
+  sources: SavedDocument[];
+}
+
 

@@ -8,6 +8,8 @@ import EvaluationPanel from './EvaluationPanel';
 import { EvaluationConfig, OverallEvaluation } from './evaluationService';
 import { SavedPrompt, SavedVariableSet } from './types';
 import { DEFAULT_PROMPT, DEFAULT_VARIABLES, getPredefinedVariableSets, NEW_PROMPT_TEMPLATE, NEW_VARIABLES_TEMPLATE } from './constants/defaults';
+import { DocumentService, DocumentServiceConfig } from './documentService';
+import DocumentManager from './DocumentManager';
 import { substituteVariables as substituteVariablesUtil } from './utils/templating';
 import VariablesPanel from './components/VariablesPanel';
 import PromptPanel from './components/PromptPanel';
@@ -33,6 +35,8 @@ function App() {
   const [savedVariableSets, setSavedVariableSets] = useState<SavedVariableSet[]>([]);
   const [currentVariableSetId, setCurrentVariableSetId] = useState<string | null>(null);
   const [showVariableManager, setShowVariableManager] = useState<boolean>(false);
+  const [showDocumentManager, setShowDocumentManager] = useState<boolean>(false);
+  const [documentConfig, setDocumentConfig] = useState<DocumentServiceConfig | null>(null);
   const [leftPanelWidth, setLeftPanelWidth] = useState<number>(() => {
     const saved = localStorage.getItem('llm-prompt-tester-left-panel-width');
     return saved ? parseInt(saved, 10) : 320;
@@ -110,6 +114,7 @@ function App() {
     temperature: 0.2
   });
   const [apiService] = useState(() => new ApiService(apiConfig));
+  const [documentService] = useState(() => new DocumentService());
 
   useEffect(() => {
     const savedConfig = localStorage.getItem('llm-prompt-tester-config');
@@ -131,6 +136,18 @@ function App() {
         setEvaluationConfig(config);
       } catch (error) {
         console.warn('Failed to load saved evaluation configuration');
+      }
+    }
+
+    // Load saved document config
+    const savedDocumentConfig = localStorage.getItem('llm-prompt-tester-document-config');
+    if (savedDocumentConfig) {
+      try {
+        const config = JSON.parse(savedDocumentConfig);
+        setDocumentConfig(config);
+        documentService.updateConfig(config);
+      } catch (error) {
+        console.warn('Failed to load saved document configuration');
       }
     }
 
@@ -172,6 +189,12 @@ function App() {
     setEvaluationConfig(newConfig);
     localStorage.setItem('llm-prompt-tester-evaluation-config', JSON.stringify(newConfig));
   }, []);
+
+  const handleDocumentConfigChange = useCallback((newConfig: DocumentServiceConfig) => {
+    setDocumentConfig(newConfig);
+    documentService.updateConfig(newConfig);
+    localStorage.setItem('llm-prompt-tester-document-config', JSON.stringify(newConfig));
+  }, [documentService]);
 
   const handleEvaluationComplete = useCallback((evaluation: OverallEvaluation) => {
     // Handle evaluation completion if needed
@@ -434,6 +457,7 @@ function App() {
           onOpenPromptManager={() => setShowPromptManager(true)}
           hasUnsaved={hasUnsavedChanges()}
           onOpenSettings={() => setShowSettings(true)}
+          onOpenDocuments={() => setShowDocumentManager(true)}
           onExecute={executePrompt}
           isExecuting={isExecuting}
         />
@@ -480,6 +504,8 @@ function App() {
         onConfigChange={handleConfigChange}
         evaluationConfig={evaluationConfig}
         onEvaluationConfigChange={handleEvaluationConfigChange}
+        documentConfig={documentConfig}
+        onDocumentConfigChange={handleDocumentConfigChange}
       />
       
       <PromptManager
@@ -504,6 +530,13 @@ function App() {
         onSaveVariableSet={saveCurrentVariableSet}
         onNewVariableSet={createNewVariableSet}
         hasUnsavedChanges={hasUnsavedVariableChanges()}
+      />
+      
+      <DocumentManager
+        isOpen={showDocumentManager}
+        onClose={() => setShowDocumentManager(false)}
+        documentService={documentService}
+        documentConfig={documentConfig}
       />
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { EvaluationCriteria, EvaluationConfig } from './evaluationService';
+import { DocumentServiceConfig } from './documentService';
 
 export interface ApiConfig {
   provider: 'openai' | 'anthropic';
@@ -16,6 +17,8 @@ interface SettingsProps {
   onConfigChange: (config: ApiConfig) => void;
   evaluationConfig: EvaluationConfig;
   onEvaluationConfigChange: (config: EvaluationConfig) => void;
+  documentConfig: DocumentServiceConfig | null;
+  onDocumentConfigChange: (config: DocumentServiceConfig) => void;
 }
 
 const Settings: React.FC<SettingsProps> = ({ 
@@ -24,11 +27,20 @@ const Settings: React.FC<SettingsProps> = ({
   config, 
   onConfigChange, 
   evaluationConfig, 
-  onEvaluationConfigChange 
+  onEvaluationConfigChange,
+  documentConfig,
+  onDocumentConfigChange
 }) => {
   const [localConfig, setLocalConfig] = useState<ApiConfig>(config);
   const [localEvaluationConfig, setLocalEvaluationConfig] = useState<EvaluationConfig>(evaluationConfig);
-  const [activeTab, setActiveTab] = useState<'api' | 'evaluation'>('api');
+  const [localDocumentConfig, setLocalDocumentConfig] = useState<DocumentServiceConfig>(
+    documentConfig || {
+      pineconeApiKey: '',
+      indexName: '',
+      environment: ''
+    }
+  );
+  const [activeTab, setActiveTab] = useState<'api' | 'evaluation' | 'rag'>('api');
 
   useEffect(() => {
     setLocalConfig(config);
@@ -38,9 +50,18 @@ const Settings: React.FC<SettingsProps> = ({
     setLocalEvaluationConfig(evaluationConfig);
   }, [evaluationConfig]);
 
+  useEffect(() => {
+    setLocalDocumentConfig(documentConfig || {
+      pineconeApiKey: '',
+      indexName: '',
+      environment: ''
+    });
+  }, [documentConfig]);
+
   const handleSave = () => {
     onConfigChange(localConfig);
     onEvaluationConfigChange(localEvaluationConfig);
+    onDocumentConfigChange(localDocumentConfig);
     onClose();
   };
 
@@ -53,7 +74,7 @@ const Settings: React.FC<SettingsProps> = ({
         anthropicKey: '',
         anthropicModel: 'claude-3-5-sonnet-20241022'
       });
-    } else {
+    } else if (activeTab === 'evaluation') {
       // Reset evaluation config to defaults
       setLocalEvaluationConfig({
         criteria: [
@@ -97,6 +118,13 @@ const Settings: React.FC<SettingsProps> = ({
         judgeModel: 'gpt-4o',
         temperature: 0.2
       });
+    } else if (activeTab === 'rag') {
+      // Reset RAG config to defaults
+      setLocalDocumentConfig({
+        pineconeApiKey: '',
+        indexName: '',
+        environment: ''
+      });
     }
   };
 
@@ -128,6 +156,12 @@ const Settings: React.FC<SettingsProps> = ({
             onClick={() => setActiveTab('evaluation')}
           >
             Evaluation Settings
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'rag' ? 'active' : ''}`}
+            onClick={() => setActiveTab('rag')}
+          >
+            RAG Settings
           </button>
         </div>
         
@@ -207,7 +241,7 @@ const Settings: React.FC<SettingsProps> = ({
               <strong>🔒 Security Note:</strong> API keys are stored locally in your browser and never sent to external servers except the LLM providers you choose.
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'evaluation' ? (
           <div>
             <div className="setting-group">
               <label className="setting-label">Judge Model:</label>
@@ -283,7 +317,55 @@ const Settings: React.FC<SettingsProps> = ({
               <strong>💡 Note:</strong> Evaluation requires an OpenAI API key. The judge model will assess responses based on your selected criteria.
             </div>
           </div>
-        )}
+        ) : activeTab === 'rag' ? (
+          <div>
+            <div className="setting-group">
+              <label className="setting-label">Pinecone API Key:</label>
+              <input
+                type="password"
+                className="setting-input"
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                value={localDocumentConfig.pineconeApiKey}
+                onChange={(e) => setLocalDocumentConfig({...localDocumentConfig, pineconeApiKey: e.target.value})}
+              />
+              <small className="setting-help">
+                Get your API key from <a href="https://app.pinecone.io" target="_blank" rel="noopener noreferrer">Pinecone Console</a>
+              </small>
+            </div>
+
+            <div className="setting-group">
+              <label className="setting-label">Pinecone Index Name:</label>
+              <input
+                type="text"
+                className="setting-input"
+                placeholder="my-rag-index"
+                value={localDocumentConfig.indexName}
+                onChange={(e) => setLocalDocumentConfig({...localDocumentConfig, indexName: e.target.value})}
+              />
+              <small className="setting-help">
+                The name of your Pinecone index for storing document embeddings
+              </small>
+            </div>
+
+            <div className="setting-group">
+              <label className="setting-label">Pinecone Environment:</label>
+              <input
+                type="text"
+                className="setting-input"
+                placeholder="gcp-starter"
+                value={localDocumentConfig.environment}
+                onChange={(e) => setLocalDocumentConfig({...localDocumentConfig, environment: e.target.value})}
+              />
+              <small className="setting-help">
+                Your Pinecone environment (e.g., gcp-starter, us-east1-gcp, etc.)
+              </small>
+            </div>
+
+            <div className="evaluation-notice">
+              <strong>🚀 RAG Setup:</strong> Configure your Pinecone database to enable document-based knowledge retrieval for enhanced prompt generation. You'll also need an OpenAI API key for text embeddings.
+            </div>
+          </div>
+        ) : null}
         </div>
 
         <div className="settings-footer">
