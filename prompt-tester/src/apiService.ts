@@ -87,7 +87,6 @@ class ApiService {
     const decoder = new TextDecoder();
     let fullContent = '';
     let firstByteTime: number | undefined;
-    let firstTokenReceived = false;
 
     try {
       while (true) {
@@ -124,7 +123,6 @@ class ApiService {
               if (delta) {
                 fullContent += delta;
                 streaming.onToken(delta);
-                firstTokenReceived = true;
               }
             } catch (e) {
               // Ignore parsing errors for non-JSON lines

@@ -4,6 +4,8 @@ import Settings, { ApiConfig } from './Settings';
 import ApiService, { StreamingCallback } from './apiService';
 import PromptManager from './PromptManager';
 import VariableManager from './VariableManager';
+import EvaluationPanel from './EvaluationPanel';
+import { EvaluationConfig, OverallEvaluation } from './evaluationService';
 
 // Predefined variable sets for first-time users
 const getPredefinedVariableSets = (): SavedVariableSet[] => {
@@ -312,6 +314,48 @@ function App() {
     anthropicKey: process.env.REACT_APP_ANTHROPIC_API_KEY || '',
     anthropicModel: process.env.REACT_APP_DEFAULT_ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022'
   });
+  const [evaluationConfig, setEvaluationConfig] = useState<EvaluationConfig>({
+    criteria: [
+      {
+        name: 'Relevance',
+        description: 'How well does the response address the user intent and context?',
+        weight: 9,
+        enabled: true
+      },
+      {
+        name: 'Accuracy',
+        description: 'Is the information provided factually correct and reliable?',
+        weight: 8,
+        enabled: true
+      },
+      {
+        name: 'Clarity',
+        description: 'How clear, well-structured, and easy to understand is the response?',
+        weight: 7,
+        enabled: true
+      },
+      {
+        name: 'Completeness',
+        description: 'Does the response fully address all aspects of the request?',
+        weight: 7,
+        enabled: true
+      },
+      {
+        name: 'Tone Appropriateness',
+        description: 'Is the tone professional, appropriate, and aligned with the context?',
+        weight: 6,
+        enabled: true
+      },
+      {
+        name: 'Helpfulness',
+        description: 'How actionable and useful is the response for the recipient?',
+        weight: 8,
+        enabled: true
+      }
+    ],
+    judgeModel: 'gpt-4o',
+    temperature: 0.2
+  });
   const [apiService] = useState(() => new ApiService(apiConfig));
 
   useEffect(() => {
@@ -323,6 +367,17 @@ function App() {
         apiService.updateConfig(config);
       } catch (error) {
         console.warn('Failed to load saved configuration');
+      }
+    }
+
+    // Load saved evaluation config
+    const savedEvaluationConfig = localStorage.getItem('llm-prompt-tester-evaluation-config');
+    if (savedEvaluationConfig) {
+      try {
+        const config = JSON.parse(savedEvaluationConfig);
+        setEvaluationConfig(config);
+      } catch (error) {
+        console.warn('Failed to load saved evaluation configuration');
       }
     }
 
@@ -359,6 +414,16 @@ function App() {
     apiService.updateConfig(newConfig);
     localStorage.setItem('llm-prompt-tester-config', JSON.stringify(newConfig));
   }, [apiService]);
+
+  const handleEvaluationConfigChange = useCallback((newConfig: EvaluationConfig) => {
+    setEvaluationConfig(newConfig);
+    localStorage.setItem('llm-prompt-tester-evaluation-config', JSON.stringify(newConfig));
+  }, []);
+
+  const handleEvaluationComplete = useCallback((evaluation: OverallEvaluation) => {
+    // Handle evaluation completion if needed
+    console.log('Evaluation completed:', evaluation);
+  }, []);
 
   const savePromptsToStorage = useCallback((prompts: SavedPrompt[]) => {
     localStorage.setItem('llm-prompt-tester-prompts', JSON.stringify(prompts));
@@ -478,8 +543,6 @@ function App() {
 
   // Detect if current variables have unsaved changes
   const hasUnsavedVariableChanges = useCallback(() => {
-    const defaultVars = '{\n  "email_thread": [\n    {\n      "from": "sender@example.com",\n      "to": "you@example.com",\n      "content": "Email content here"\n    }\n  ],\n  "user_intent": "Your instruction here",\n  "context": "Additional context"\n}';
-    
     if (!currentVariableSetId) return variables !== JSON.stringify({
       "agent_info": {
         "name": "Anurag Maherchandani",
@@ -567,7 +630,7 @@ function App() {
       setLlmResponse(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setIsExecuting(false);
     }
-  }, [prompt, substituteVariables, apiConfig.provider, apiService]);
+  }, [prompt, substituteVariables, apiConfig.provider, apiService, firstByteTime]);
 
   const toggleSection = useCallback((section: string) => {
     setCollapsedSections(prev => {
@@ -745,22 +808,34 @@ function App() {
               )}
             </div>
           </div>
-          <div className={`output-right ${collapsedSections.llmResponse ? 'collapsed' : ''}`}>
-            <div className="panel-header">
-              <span>LLM Response</span>
-              <button 
-                className="collapse-btn"
-                onClick={() => toggleSection('llmResponse')}
-                title={collapsedSections.llmResponse ? 'Expand LLM Response' : 'Collapse LLM Response'}
-              >
-                {collapsedSections.llmResponse ? '▶' : '▼'}
-              </button>
+          <div className="output-right-container">
+            <div className={`output-right ${collapsedSections.llmResponse ? 'collapsed' : ''}`}>
+              <div className="panel-header">
+                <span>LLM Response</span>
+                <button 
+                  className="collapse-btn"
+                  onClick={() => toggleSection('llmResponse')}
+                  title={collapsedSections.llmResponse ? 'Expand LLM Response' : 'Collapse LLM Response'}
+                >
+                  {collapsedSections.llmResponse ? '▶' : '▼'}
+                </button>
+              </div>
+              {!collapsedSections.llmResponse && (
+              <div className="output-content response-output">
+                {llmResponse || 'The AI response will appear here after execution.'}
+              </div>
+              )}
             </div>
-            {!collapsedSections.llmResponse && (
-            <div className="output-content response-output">
-              {llmResponse || 'The AI response will appear here after execution.'}
+            
+            <div className="evaluation-container">
+              <EvaluationPanel
+                variables={variables}
+                llmResponse={llmResponse}
+                apiConfig={apiConfig}
+                evaluationConfig={evaluationConfig}
+                onEvaluationComplete={handleEvaluationComplete}
+              />
             </div>
-            )}
           </div>
         </div>
       </div>
@@ -770,6 +845,8 @@ function App() {
         onClose={() => setShowSettings(false)}
         config={apiConfig}
         onConfigChange={handleConfigChange}
+        evaluationConfig={evaluationConfig}
+        onEvaluationConfigChange={handleEvaluationConfigChange}
       />
       
       <PromptManager
