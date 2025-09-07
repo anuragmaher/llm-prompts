@@ -17,7 +17,6 @@ const getPredefinedVariableSets = (): SavedVariableSet[] => {
       variables: JSON.stringify({
         "agent_info": {
           "name": "Sarah Chen",
-          "email": "sarah.chen@techcorp.com",
           "role": "Product Manager"
         },
         "email_thread": [
@@ -39,7 +38,6 @@ const getPredefinedVariableSets = (): SavedVariableSet[] => {
       variables: JSON.stringify({
         "agent_info": {
           "name": "David Park",
-          "email": "david.park@devstudio.com", 
           "role": "Engineering Lead"
         },
         "email_thread": [
@@ -61,7 +59,6 @@ const getPredefinedVariableSets = (): SavedVariableSet[] => {
       variables: JSON.stringify({
         "agent_info": {
           "name": "Jennifer Walsh",
-          "email": "j.walsh@marketingplus.com",
           "role": "Marketing Director"
         },
         "email_thread": [
@@ -83,7 +80,6 @@ const getPredefinedVariableSets = (): SavedVariableSet[] => {
       variables: JSON.stringify({
         "agent_info": {
           "name": "Amanda Foster",
-          "email": "amanda.foster@customercare.com",
           "role": "Customer Success Manager"
         },
         "email_thread": [
@@ -105,7 +101,6 @@ const getPredefinedVariableSets = (): SavedVariableSet[] => {
       variables: JSON.stringify({
         "agent_info": {
           "name": "Marcus Johnson",
-          "email": "marcus.johnson@hiringfirm.com",
           "role": "HR Business Partner"
         },
         "email_thread": [
@@ -127,7 +122,6 @@ const getPredefinedVariableSets = (): SavedVariableSet[] => {
       variables: JSON.stringify({
         "agent_info": {
           "name": "Rachel Green",
-          "email": "rachel.green@bizdev.com",
           "role": "Business Development Director"
         },
         "email_thread": [
@@ -149,7 +143,6 @@ const getPredefinedVariableSets = (): SavedVariableSet[] => {
       variables: JSON.stringify({
         "agent_info": {
           "name": "Alex Rodriguez",
-          "email": "alex.rodriguez@eventspro.com",
           "role": "Event Coordinator"
         },
         "email_thread": [
@@ -171,7 +164,6 @@ const getPredefinedVariableSets = (): SavedVariableSet[] => {
       variables: JSON.stringify({
         "agent_info": {
           "name": "Kevin Liu",
-          "email": "kevin.liu@procurement.com",
           "role": "Procurement Manager"
         },
         "email_thread": [
@@ -193,7 +185,6 @@ const getPredefinedVariableSets = (): SavedVariableSet[] => {
       variables: JSON.stringify({
         "agent_info": {
           "name": "Priya Patel",
-          "email": "priya.patel@innovation.com",
           "role": "Product Marketing Manager"
         },
         "email_thread": [
@@ -215,7 +206,6 @@ const getPredefinedVariableSets = (): SavedVariableSet[] => {
       variables: JSON.stringify({
         "agent_info": {
           "name": "Victoria Chang",
-          "email": "victoria.chang@corpcomms.com",
           "role": "Communications Director"
         },
         "email_thread": [
@@ -255,7 +245,6 @@ function App() {
   const [variables, setVariables] = useState<string>(JSON.stringify({
     "agent_info": {
       "name": "Anurag Maherchandani",
-      "email": "anurag@grexit.com",
       "role": "AI Leader"
     },
     "email_thread": [
@@ -546,7 +535,6 @@ function App() {
     if (!currentVariableSetId) return variables !== JSON.stringify({
       "agent_info": {
         "name": "Anurag Maherchandani",
-        "email": "anurag@grexit.com",
         "role": "AI Leader"
       },
       "email_thread": [

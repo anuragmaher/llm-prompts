@@ -62,7 +62,6 @@ A comprehensive guide to using the LLM Prompt Tester effectively for various use
    {
      "agent_info": {
        "name": "Your Name",
-       "email": "you@company.com",
        "role": "AI Leader"
      }
    }

@@ -124,8 +124,7 @@ Perfect for creating professional email responses:
 ```json
 {
   "agent_info": {
-    "name": "Your Name",
-    "email": "you@company.com", 
+    "name": "Your Name", 
     "role": "Your Role"
   },
   "email_thread": [

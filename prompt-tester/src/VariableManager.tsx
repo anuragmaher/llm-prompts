@@ -145,7 +145,7 @@ const VariableManager: React.FC<VariableManagerProps> = ({
                       key={variableSet.id} 
                       className={`prompt-item ${variableSet.id === currentVariableSetId ? 'active' : ''}`}
                     >
-                      <div className="prompt-item-content" onClick={() => onLoadVariableSet(variableSet.id)}>
+                      <div className="prompt-item-content" onClick={() => { onLoadVariableSet(variableSet.id); onClose(); }}>
                         <div className="prompt-item-header">
                           <h4>{variableSet.name}</h4>
                           <span className="prompt-date">{formatDate(variableSet.lastModified)}</span>
