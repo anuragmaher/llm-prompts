@@ -48,7 +48,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
   const getSupportedFileInfo = () => {
     const extensions = DocumentParser.getSupportedExtensions();
     const categories = {
-      'Documents': ['doc', 'docx', 'txt', 'md'],
+      'Documents': ['pdf', 'doc', 'docx', 'txt', 'md'],
       'Data': ['json', 'csv', 'xml', 'yaml', 'yml'],
       'Code': ['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'cpp', 'c', 'html', 'css']
     };
@@ -224,9 +224,6 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
                       <span className="extensions">{extensions.map(ext => `.${ext}`).join(', ')}</span>
                     </div>
                   ))}
-                </div>
-                <div className="pdf-note">
-                  <strong>Note:</strong> PDF support is temporarily disabled. To upload PDF content, please convert your PDF to a .txt or .docx file first.
                 </div>
               </div>
             </div>

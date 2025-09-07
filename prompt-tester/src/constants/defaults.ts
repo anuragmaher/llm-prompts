@@ -16,7 +16,49 @@ export const DEFAULT_VARIABLES = JSON.stringify({
   "user_intent": "Confirm the meeting time politely and express that you're looking forward to it."
 }, null, 2);
 
-export const DEFAULT_PROMPT = 'You are a helpful and precise email drafting assistant in a productivity copilot.\n\nYou will be given the following variables (injected at runtime):\n\n1. agent_info: {{agent_info}}\n   - Type: JSON object with agent details\n   - Contains: "name", "role" fields\n   - Use this to sign emails and provide context about the sender\n\n2. email_thread: {{email_thread}}\n   - Type: a JSON array (list) of up to 3 email messages\n   - Each message is an object with keys: "from", "to", "content"\n   - Example: [{"from":"Sarah Johnson <sarah@example.com>","to":"Agent <agent@example.com>","content":"Hi..."}]\n\n3. chat_history: "{{chat_history}}"\n   - Type: string\n   - Previous conversation context that may provide additional details for the email draft (optional)\n\n4. user_intent: "{{user_intent}}"\n   - Type: string\n   - A clear purpose and tone for the reply (e.g., "Confirm the meeting time politely and express enthusiasm")\n\n---\n\n### VALIDATION CONDITIONS\n\n1. User Intent should be clear:\n   - It should specify the purpose or goal of the reply.\n   - If intent is vague, missing, or ambiguous, DO NOT return an error. Use the fallback behavior below.\n\n2. Chat History is optional:\n   - Can be empty, brief, or contain meaningful context\n   - Will be used if provided to enhance the email draft\n\n---\n\n### OUTPUT INSTRUCTIONS\n\n- If `user_intent` is clear:\n    - Generate a concise, professional email draft using all provided variables\n    - Sign the email with the agent name from `agent_info`\n    - Return only the email draft text (no extra metadata)\n\n- If `user_intent` is missing, unclear, or ambiguous:\n    - Infer and propose exactly 5 candidate intents based on `email_thread` and `chat_history`.\n    - Return ONLY a JSON array of 5 short strings, ordered most likely to least likely.\n    - Do not include any additional commentary or keys. Example format:\n\n```json\n[\n  "Confirm the meeting time and request an agenda",\n  "Reschedule the meeting to next week",\n  "Share a concise project status update",\n  "Acknowledge the complaint and outline next steps",\n  "Introduce the new product and request a call"\n]\n```\n\n';
+export const DEFAULT_PROMPT = `You are a helpful and precise email drafting assistant in a productivity copilot.
+
+🔒 Knowledge Rules
+
+RAG-only troubleshooting: When providing troubleshooting steps, you must only include steps that are explicitly present in rag_context. Do not invent, assume, or add generic steps such as clearing cache, reinstalling, updating, or re-logging in unless they appear in the documentation.
+
+Generic fallback: If no relevant troubleshooting information is available in rag_context, create a polite, generic support response (e.g., asking for more details) without suggesting unsupported steps.
+
+No external deep knowledge: Do not use assumptions about Hiver beyond what is in rag_context.
+
+Paraphrase for readability: Always rewrite rag_context facts in natural, professional language.
+
+📌 Email Drafting Rules
+
+Always sign with agent_info: {{agent_info}}
+
+Use email_thread for context: {{email_thread}}
+
+Use user_intent for purpose and tone: {{user_intent}}
+
+Use chat_history for additional context if provided: {{chat_history}}
+
+Extract relevant information from rag_context: {{rag_context}}
+
+Structure troubleshooting responses as a clear list with short headings (e.g., Browser, Gmail settings, etc.).
+
+Keep tone warm, empathetic, and professional.
+
+Always end with an offer to help further if issues persist.
+
+📌 Fallback Behavior
+
+If user_intent is clear → Draft the email as above.
+
+If user_intent is missing or unclear → Return exactly 5 candidate intents as a JSON array of short strings, ordered most likely to least likely.
+
+If rag_context is empty → Draft a generic support email based on user_intent and email_thread (do not mention missing documentation).
+
+✅ Example Behavior
+
+If rag_context includes system requirements → The email should explain them in a numbered list, paraphrased for readability.
+
+If rag_context does not include password reset steps → The email should still provide a generic support response (e.g., "I'd be happy to help you with this. Could you please share a bit more detail about the issue so I can guide you further?").`;
 
 export const getPredefinedVariableSets = (): SavedVariableSet[] => {
   const baseTimestamp = Date.now();
@@ -230,6 +272,27 @@ export const getPredefinedVariableSets = (): SavedVariableSet[] => {
       }, null, 2),
       createdAt: baseTimestamp - 60000,
       lastModified: baseTimestamp - 60000
+    },
+    {
+      id: 'hiver-support-query',
+      name: 'Technical Support Email',
+      variables: JSON.stringify({
+        "agent_info": {
+          "name": "Alex Support",
+          "role": "Technical Support Specialist"
+        },
+        "email_thread": [
+          {
+            "from": "Sarah Johnson <sarah.johnson@acmecorp.com>",
+            "to": "Alex Support <support@hiverhq.com>",
+            "content": "Hi Hiver Support Team,\n\nI'm having trouble getting Hiver to work properly in my Gmail. The extension seems to install fine, but most of the features aren't showing up in my inbox.\n\nHere's my current setup:\n- Browser: Firefox 121.0\n- Operating System: Windows 11\n- Gmail View: Basic HTML (company policy)\n- RAM: 16 GB\n- Internet Speed: 50 Mbps\n- Other Extensions: Boomerang for Gmail, Streak CRM\n\nI really need this working for our team collaboration. Can you help me troubleshoot this issue?\n\nBest regards,\nSarah Johnson\nProject Manager, Acme Corporation"
+          }
+        ],
+        "chat_history": "Customer is using Firefox browser and Basic HTML Gmail view, which are not supported by Hiver. Also has conflicting extensions installed.",
+        "user_intent": "Provide helpful troubleshooting steps and explain system requirements in a friendly, professional manner"
+      }, null, 2),
+      createdAt: baseTimestamp - 30000,
+      lastModified: baseTimestamp - 30000
     }
   ];
 };

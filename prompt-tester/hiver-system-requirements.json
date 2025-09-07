@@ -1,0 +1,77 @@
+{
+  "email_support_query": {
+    "from": "sarah.johnson@acmecorp.com",
+    "to": "support@hiverhq.com",
+    "subject": "Hiver Not Loading - System Requirements Issue",
+    "timestamp": "2024-01-15T14:30:00Z",
+    "priority": "high",
+    "category": "technical_support",
+    "body": "Hi Hiver Support Team,\n\nI'm having trouble getting Hiver to work properly in my Gmail. The extension seems to install fine, but most of the features aren't showing up in my inbox.\n\nHere's my current setup:\n- Browser: Firefox 121.0\n- Operating System: Windows 11\n- Gmail View: Basic HTML (company policy)\n- RAM: 16 GB\n- Internet Speed: 50 Mbps\n- Other Extensions: Boomerang for Gmail, Streak CRM\n\nI really need this working for our team collaboration. Can you help me troubleshoot this issue?\n\nBest regards,\nSarah Johnson\nProject Manager\nAcme Corporation",
+    "user_info": {
+      "name": "Sarah Johnson",
+      "email": "sarah.johnson@acmecorp.com",
+      "company": "Acme Corporation",
+      "role": "Project Manager",
+      "team_size": "15 people",
+      "subscription": "Business Plan"
+    },
+    "technical_details": {
+      "browser": {
+        "name": "Firefox",
+        "version": "121.0",
+        "is_supported": false
+      },
+      "operating_system": {
+        "name": "Windows 11",
+        "is_supported": true
+      },
+      "gmail_view": {
+        "current": "Basic HTML",
+        "required": "Standard/Default",
+        "is_compatible": false
+      },
+      "hardware": {
+        "ram": "16 GB",
+        "meets_requirements": true
+      },
+      "network": {
+        "speed": "50 Mbps",
+        "meets_requirements": true
+      },
+      "conflicting_extensions": [
+        "Boomerang for Gmail",
+        "Streak CRM"
+      ]
+    },
+    "identified_issues": [
+      {
+        "issue": "Unsupported browser",
+        "description": "Using Firefox instead of Google Chrome",
+        "severity": "critical",
+        "solution": "Switch to Google Chrome latest stable version"
+      },
+      {
+        "issue": "Incompatible Gmail view",
+        "description": "Using Basic HTML view instead of Standard view",
+        "severity": "high", 
+        "solution": "Switch Gmail to Standard/Default view"
+      },
+      {
+        "issue": "Conflicting extensions",
+        "description": "Boomerang and Streak may interfere with Hiver",
+        "severity": "medium",
+        "solution": "Disable conflicting Gmail extensions"
+      }
+    ],
+    "recommended_solution": {
+      "steps": [
+        "Install and use Google Chrome (latest stable version)",
+        "Switch Gmail from Basic HTML to Standard view",
+        "Disable Boomerang and Streak extensions",
+        "Reinstall Hiver Chrome extension",
+        "Test functionality in the new setup"
+      ],
+      "additional_notes": "Since you're using this for team collaboration, ensure your IT team allows the Hiver Chrome extension and allowlists *.hiverhq.com, *.hiverapi.com, *.googleapis.com domains"
+    }
+  }
+}

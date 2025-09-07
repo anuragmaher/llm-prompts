@@ -349,11 +349,158 @@ function App() {
   const executePrompt = useCallback(async () => {
     setIsExecuting(true);
     setFirstByteTime(null);
-    const substitutedPrompt = substituteVariables(prompt);
     
-    // Set the processed prompt immediately
-    setProcessedPrompt(substitutedPrompt);
-    setLlmResponse('Executing prompt...\n\nProvider: ' + apiConfig.provider.toUpperCase() + '\n\nProcessing your request...');
+    // Extract query for RAG from variables (email content, user intent, etc.)
+    let ragContext = null;
+    try {
+      console.log('🚀 Starting RAG integration process...');
+      console.log('📋 Current variables:', variables);
+      
+      const parsedVariables = JSON.parse(variables);
+      console.log('✅ Variables parsed successfully:', parsedVariables);
+      
+      // Construct RAG query from available information
+      let ragQuery = '';
+      if (parsedVariables.email_thread && Array.isArray(parsedVariables.email_thread)) {
+        // Use email content as query
+        ragQuery = parsedVariables.email_thread.map((email: any) => email.content || '').join(' ');
+        console.log('📧 Using email_thread as RAG query source');
+      } else if (parsedVariables.user_intent) {
+        // Use user intent as query
+        ragQuery = parsedVariables.user_intent;
+        console.log('🎯 Using user_intent as RAG query source');
+      } else if (parsedVariables.body) {
+        // For support emails, use body content
+        ragQuery = parsedVariables.body;
+        console.log('📝 Using body as RAG query source');
+      }
+      
+      console.log('🔍 Extracted RAG query:', ragQuery);
+      console.log('⚙️ Document config available:', !!documentConfig);
+      console.log('📚 Document service available:', !!documentService);
+      
+      // Check if there are any documents available
+      if (documentService) {
+        const savedDocuments = documentService.getSavedDocuments();
+        console.log('📄 Saved documents count:', savedDocuments.length);
+        if (savedDocuments.length > 0) {
+          console.log('📋 Available documents:', savedDocuments.map(doc => ({
+            name: doc.name,
+            chunks: doc.chunks.length,
+            fileType: doc.fileType
+          })));
+        } else {
+          console.log('⚠️ No documents found in knowledge base');
+        }
+      }
+      
+      // Query RAG system if we have a valid query and document service is configured
+      if (ragQuery.trim() && documentConfig) {
+        console.log('🔍 Querying RAG system with:', ragQuery);
+        setLlmResponse('Executing prompt...\n\nProvider: ' + apiConfig.provider.toUpperCase() + '\n\nQuerying knowledge base...');
+        
+        try {
+          ragContext = await documentService.searchDocuments(ragQuery.trim(), 3);
+          console.log('📚 RAG context retrieved:');
+          console.log('Query:', ragContext?.query);
+          console.log('Found', ragContext?.relevantChunks?.length || 0, 'relevant chunks');
+          console.log('Source documents:', ragContext?.sources?.length || 0);
+          
+          // Log each chunk with details
+          if (ragContext?.relevantChunks) {
+            ragContext.relevantChunks.forEach((chunk, index) => {
+              console.log(`📄 Chunk ${index + 1}:`, {
+                id: chunk.id,
+                contentPreview: chunk.content.substring(0, 200) + '...',
+                contentLength: chunk.content.length,
+                pineconeId: chunk.pineconeId
+              });
+            });
+          }
+          
+          // Log source document info
+          if (ragContext?.sources) {
+            ragContext.sources.forEach((source, index) => {
+              console.log(`📋 Source ${index + 1}:`, {
+                name: source.name,
+                fileType: source.fileType,
+                chunks: source.chunks.length,
+                createdAt: new Date(source.createdAt).toLocaleString()
+              });
+            });
+          }
+          
+        } catch (error) {
+          console.warn('RAG query failed:', error);
+          // Continue without RAG context
+        }
+      }
+      
+      // Add RAG context to variables
+      const enrichedVariables = {
+        ...parsedVariables,
+        ...(ragContext && { rag_context: ragContext })
+      };
+      
+      // Log the final enriched variables
+      if (ragContext) {
+        console.log('🔧 Variables enriched with RAG context');
+        console.log('📝 RAG context structure:', {
+          query: ragContext.query,
+          chunksCount: ragContext.relevantChunks?.length || 0,
+          sourcesCount: ragContext.sources?.length || 0,
+          totalContextLength: ragContext.relevantChunks?.reduce((sum, chunk) => sum + chunk.content.length, 0) || 0
+        });
+      } else {
+        console.log('⚠️ No RAG context available - proceeding without knowledge base data');
+      }
+      
+      // Update variables with RAG context for substitution
+      const enrichedVariablesString = JSON.stringify(enrichedVariables, null, 2);
+      
+      // Debug: Check if prompt contains rag_context placeholder
+      const hasRagPlaceholder = prompt.includes('{{rag_context}}');
+      console.log('🔧 Prompt contains {{rag_context}}:', hasRagPlaceholder);
+      console.log('📝 Original prompt length:', prompt.length);
+      
+      // Generate both original and enriched prompts for comparison
+      const originalPrompt = substituteVariablesUtil(prompt, variables);
+      const substitutedPrompt = substituteVariablesUtil(prompt, enrichedVariablesString);
+      
+      console.log('📊 Prompt comparison:');
+      console.log('- Original prompt length:', originalPrompt.length);
+      console.log('- Enriched prompt length:', substitutedPrompt.length);
+      console.log('- Length difference:', substitutedPrompt.length - originalPrompt.length);
+      
+      if (ragContext && hasRagPlaceholder) {
+        console.log('✅ RAG context should be substituted into prompt');
+        
+        // Show a preview of where RAG context appears in the prompt
+        const ragContextStart = substitutedPrompt.indexOf('"query":');
+        if (ragContextStart > -1) {
+          const preview = substitutedPrompt.substring(Math.max(0, ragContextStart - 50), ragContextStart + 200);
+          console.log('🔍 RAG context preview in prompt:', preview + '...');
+        }
+      } else {
+        console.log('⚠️ RAG context will NOT be used in prompt:', {
+          hasRAGContext: !!ragContext,
+          hasPlaceholder: hasRagPlaceholder
+        });
+      }
+      
+      console.log('✅ Final prompt prepared with', ragContext ? 'RAG-enriched' : 'original', 'variables');
+      
+      // Set the processed prompt immediately
+      setProcessedPrompt(substitutedPrompt);
+      setLlmResponse('Executing prompt...\n\nProvider: ' + apiConfig.provider.toUpperCase() + '\n\nProcessing your request...' + (ragContext ? '\n\n✅ Knowledge base consulted' : ''));
+      
+    } catch (error) {
+      console.warn('Failed to parse variables or query RAG:', error);
+      // Fallback to original behavior
+      const substitutedPrompt = substituteVariables(prompt);
+      setProcessedPrompt(substitutedPrompt);
+      setLlmResponse('Executing prompt...\n\nProvider: ' + apiConfig.provider.toUpperCase() + '\n\nProcessing your request...');
+    }
     
     try {
       const validation = apiService.validateConfig();
@@ -386,12 +533,14 @@ function App() {
         }
       };
 
-      await apiService.executePrompt(substitutedPrompt, streaming);
+      // Use the processed prompt (which might include RAG context)
+      const finalPrompt = processedPrompt || substituteVariables(prompt);
+      await apiService.executePrompt(finalPrompt, streaming);
     } catch (error) {
       setLlmResponse(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setIsExecuting(false);
     }
-  }, [prompt, substituteVariables, apiConfig.provider, apiService, firstByteTime]);
+  }, [prompt, variables, documentService, documentConfig, apiConfig.provider, apiService, firstByteTime]);
 
   const toggleSection = useCallback((section: string) => {
     setCollapsedSections(prev => {

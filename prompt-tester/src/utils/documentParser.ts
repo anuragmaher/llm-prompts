@@ -1,6 +1,8 @@
 import mammoth from 'mammoth';
+import * as pdfjsLib from 'pdfjs-dist';
 
-// Note: pdf-parse doesn't work in browser environment, so we'll implement a simpler approach
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export interface ParsedDocument {
   content: string;
@@ -44,7 +46,7 @@ export class DocumentParser {
     
     switch (fileExtension) {
       case 'pdf':
-        throw new Error(`PDF parsing is temporarily disabled due to browser compatibility issues. Please convert your PDF to a text file (.txt) or Word document (.docx) and upload that instead.`);
+        return this.parsePDF(file);
       case 'doc':
       case 'docx':
         return this.parseWord(file);
@@ -187,6 +189,56 @@ export class DocumentParser {
     return columnCount;
   }
 
+  private static async parsePDF(file: File): Promise<ParsedDocument> {
+    try {
+      console.log('parsePDF called for:', file.name);
+      
+      const arrayBuffer = await this.readFileAsArrayBuffer(file);
+      console.log('PDF ArrayBuffer read, size:', arrayBuffer.byteLength);
+      
+      // Load the PDF document
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      console.log(`PDF loaded: ${pdf.numPages} pages`);
+      
+      let fullText = '';
+      
+      // Extract text from each page
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        console.log(`Processing page ${pageNum}/${pdf.numPages}`);
+        
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        
+        // Combine text items into readable text
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ')
+          .replace(/\s+/g, ' ') // Normalize whitespace
+          .trim();
+        
+        if (pageText) {
+          fullText += `\n\n--- Page ${pageNum} ---\n${pageText}`;
+        }
+      }
+      
+      // Clean up the full text
+      fullText = fullText.trim();
+      const wordCount = fullText.split(/\s+/).filter(word => word.length > 0).length;
+      
+      console.log(`PDF parsing complete: ${fullText.length} characters, ${wordCount} words`);
+      
+      return {
+        content: fullText,
+        metadata: {
+          pageCount: pdf.numPages,
+          wordCount: wordCount
+        }
+      };
+    } catch (error) {
+      console.error('PDF parsing error:', error);
+      throw new Error(`Failed to parse PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
 
   private static async parseWord(file: File): Promise<ParsedDocument> {
     try {
@@ -276,7 +328,7 @@ export class DocumentParser {
 
   static getSupportedExtensions(): string[] {
     return [
-      'doc', 'docx', 'txt', 'md', 'json', 'csv',
+      'pdf', 'doc', 'docx', 'txt', 'md', 'json', 'csv',
       'js', 'ts', 'jsx', 'tsx', 'py', 'java', 'cpp', 'c',
       'html', 'css', 'xml', 'yaml', 'yml'
     ];
