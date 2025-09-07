@@ -1,46 +1,218 @@
-# Getting Started with Create React App
+# LLM Prompt Tester
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A modern, feature-rich web application for testing and developing LLM prompts with real-time variable substitution and streaming responses.
 
-## Available Scripts
+## ✨ Features
 
-In the project directory, you can run:
+### Core Functionality
+- **Multi-Provider Support**: Works with OpenAI GPT models and Anthropic Claude
+- **Real-time Streaming**: Watch responses appear word-by-word like ChatGPT/Claude
+- **Variable Substitution**: Use `{{variable_name}}` syntax with JSON-based variables
+- **Execution Timing**: Track response times for performance analysis
 
-### `npm start`
+### User Interface
+- **Modern Design**: Dark glassmorphism UI with smooth animations
+- **Collapsible Sections**: Hide/show panels to focus on what matters
+- **Resizable Panels**: Drag to resize the variables panel to your preference
+- **Responsive Layout**: Works on different screen sizes
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+### Prompt Management
+- **Save & Load**: Store multiple prompts with names and metadata
+- **Auto-save**: Remembers your preferences and panel states
+- **Template System**: Built-in email drafting assistant template
+- **Export/Import**: Manage your prompt library
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+### Professional Use Cases
+- **Email Assistant**: Pre-configured for professional email drafting
+- **QA Workflows**: Perfect for testing prompts with different variables
+- **Prompt Engineering**: Rapid iteration and testing environment
+- **API Testing**: Compare responses across different models
 
-### `npm test`
+## 🚀 Quick Start
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Prerequisites
+- Node.js 16+ 
+- npm or yarn
+- API keys for OpenAI and/or Anthropic
 
-### `npm run build`
+### Installation
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd prompt-tester
+   ```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env.local
+   ```
+   
+   Edit `.env.local` with your API keys:
+   ```env
+   REACT_APP_OPENAI_API_KEY=your_openai_key_here
+   REACT_APP_ANTHROPIC_API_KEY=your_anthropic_key_here
+   ```
 
-### `npm run eject`
+4. **Start the development server**
+   ```bash
+   npm start
+   ```
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+5. **Open in browser**
+   Navigate to `http://localhost:3000`
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### Deployment
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+**Vercel (Recommended)**
+```bash
+npm run build
+vercel --prod
+```
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+**Other Platforms**
+```bash
+npm run build
+# Deploy the 'build' folder to your hosting provider
+```
 
-## Learn More
+## 📖 Usage Guide
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### Basic Workflow
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+1. **Configure Variables** (Left Panel)
+   - Edit the JSON object with your test data
+   - Use realistic data for better testing
+   - Variables support strings, objects, and arrays
+
+2. **Write Your Prompt** (Top Right)
+   - Use `{{variable_name}}` syntax for dynamic content
+   - Test different prompt variations
+   - Save useful prompts for later
+
+3. **Execute & Analyze** (Bottom)
+   - Click "Execute" to run your prompt
+   - Watch streaming responses in real-time
+   - Review execution times and results
+
+### Advanced Features
+
+**Panel Management**
+- Click ▼/▶ arrows to collapse/expand sections
+- Drag the resize handle to adjust panel widths
+- Your layout preferences are automatically saved
+
+**Prompt Library**
+- Click "📁 Prompts" to manage saved prompts
+- Save current work with custom names
+- Load previous prompts for iteration
+
+**API Configuration**
+- Click "⚙️ Settings" to configure providers
+- Switch between OpenAI and Anthropic
+- Select different models for comparison
+
+## 🎯 Use Cases
+
+### Email Assistant
+Perfect for creating professional email responses:
+```json
+{
+  "agent_info": {
+    "name": "Your Name",
+    "email": "you@company.com", 
+    "role": "Your Role"
+  },
+  "email_thread": [
+    {
+      "from": "client@example.com",
+      "to": "you@company.com",
+      "content": "Email content here..."
+    }
+  ],
+  "user_intent": "Respond professionally and confirm meeting"
+}
+```
+
+### API Testing
+Test different prompts with consistent data:
+- Compare OpenAI vs Anthropic responses
+- Measure response times across models
+- A/B test prompt variations
+
+### Prompt Engineering
+Rapid development and iteration:
+- Real-time variable substitution
+- Save successful prompt variations
+- Track what works best for your use case
+
+## 🛠️ Technical Details
+
+### Architecture
+- **Frontend**: React 18 with TypeScript
+- **Styling**: Modern CSS with glassmorphism effects
+- **State**: React hooks with localStorage persistence
+- **APIs**: Direct integration with OpenAI and Anthropic APIs
+
+### Key Components
+- `App.tsx` - Main application component
+- `Settings.tsx` - API configuration modal
+- `PromptManager.tsx` - Prompt library management
+- `apiService.ts` - API abstraction layer
+
+### Data Persistence
+- **Prompts**: Stored in localStorage as JSON
+- **Settings**: API keys and preferences in localStorage
+- **UI State**: Panel sizes and collapsed states remembered
+
+## 🔧 Configuration
+
+### Environment Variables
+```env
+# API Keys
+REACT_APP_OPENAI_API_KEY=sk-...
+REACT_APP_ANTHROPIC_API_KEY=sk-ant-...
+
+# Defaults (optional)
+REACT_APP_DEFAULT_PROVIDER=openai
+REACT_APP_DEFAULT_OPENAI_MODEL=gpt-4o
+REACT_APP_DEFAULT_ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
+```
+
+### Model Support
+**OpenAI Models**
+- GPT-4 Turbo
+- GPT-4o
+- GPT-3.5 Turbo
+
+**Anthropic Models** 
+- Claude 3.5 Sonnet
+- Claude 3 Haiku
+- Claude 3 Opus
+
+## 📝 License
+
+MIT License - see LICENSE file for details.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📞 Support
+
+- 🐛 **Issues**: Use GitHub Issues for bug reports
+- 💡 **Features**: Submit feature requests via Issues
+- 📧 **Contact**: [Your contact information]
+
+---
+
+Built with ❤️ for the LLM development community.
