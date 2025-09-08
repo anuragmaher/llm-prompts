@@ -10,8 +10,8 @@
   gap: 16px;
   align-items: flex-start;
   padding: 16px;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
 }
 
@@ -24,44 +24,66 @@
 
 .multi-step-name {
   padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
   font-size: 16px;
   font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.multi-step-name:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
 }
 
 .multi-step-description {
   padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
   resize: vertical;
   font-family: inherit;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.multi-step-description:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
 }
 
 .execute-btn {
   padding: 12px 24px;
-  background: #007acc;
+  background: linear-gradient(135deg, #007acc 0%, #0099ff 100%);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 122, 204, 0.2);
 }
 
 .execute-btn:hover:not(:disabled) {
-  background: #005fa3;
+  background: linear-gradient(135deg, #005fa3 0%, #0077cc 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 122, 204, 0.3);
 }
 
 .execute-btn:disabled {
-  background: #6c757d;
+  background: rgba(255, 255, 255, 0.1);
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  color: #666;
 }
 
 .execute-btn.executing {
-  background: #ffc107;
+  background: linear-gradient(135deg, #ffc107 0%, #ffdb4d 100%);
   color: #212529;
 }
 
@@ -77,8 +99,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 16px;
 }
@@ -91,7 +113,7 @@
 
 .steps-header h3 {
   margin: 0;
-  color: #333;
+  color: #ffffff;
 }
 
 .add-step-btn {
@@ -125,9 +147,9 @@
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: white;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
   user-select: none;
@@ -135,12 +157,13 @@
 
 .step-item:hover {
   border-color: #007acc;
-  background: #f0f8ff;
+  background: rgba(0, 122, 204, 0.05);
+  transform: translateY(-1px);
 }
 
 .step-item.active {
   border-color: #007acc;
-  background: #e3f2fd;
+  background: rgba(0, 122, 204, 0.1);
 }
 
 .step-item.dragging {
@@ -169,7 +192,7 @@
 
 .step-name {
   font-weight: 600;
-  color: #333;
+  color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -177,7 +200,7 @@
 
 .step-output-var {
   font-size: 12px;
-  color: #666;
+  color: #a0a0a0;
   font-style: italic;
 }
 
@@ -197,7 +220,7 @@
 }
 
 .delete-step-btn:hover:not(:disabled) {
-  background: #f8d7da;
+  background: rgba(220, 53, 69, 0.1);
 }
 
 .delete-step-btn:disabled {
@@ -206,32 +229,41 @@
 }
 
 .global-variables {
-  border-top: 1px solid #dee2e6;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   padding-top: 16px;
 }
 
 .global-variables h4 {
   margin: 0 0 8px 0;
-  color: #333;
+  color: #ffffff;
   font-size: 14px;
 }
 
 .global-variables textarea {
   width: 100%;
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
-  font-size: 12px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 13px;
   resize: vertical;
+  background: rgba(0, 0, 0, 0.3);
+  color: #ffffff;
+  line-height: 1.6;
+}
+
+.global-variables textarea:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
 }
 
 .step-editor {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: white;
-  border: 1px solid #dee2e6;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 16px;
   min-height: 0;
@@ -245,20 +277,36 @@
 
 .step-name-input {
   flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
   font-size: 16px;
   font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.step-name-input:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
 }
 
 .output-variable-input {
   width: 200px;
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
   font-size: 14px;
+  background: rgba(0, 0, 0, 0.3);
+  color: #ffffff;
+}
+
+.output-variable-input:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
 }
 
 .step-editor-content {
@@ -279,29 +327,62 @@
 .prompt-section label, .variables-section label {
   font-weight: 600;
   margin-bottom: 8px;
-  color: #333;
+  color: #ffffff;
+  font-size: 14px;
 }
 
 .prompt-section textarea {
   flex: 1;
-  padding: 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  font-family: 'JetBrains Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
   font-size: 14px;
-  line-height: 1.5;
-  resize: vertical;
+  line-height: 1.6;
+  resize: none;
+  background: rgba(255, 255, 255, 0.03);
+  color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.prompt-section textarea:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .variables-section textarea {
   flex: 1;
-  padding: 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
-  font-size: 14px;
-  line-height: 1.5;
-  resize: vertical;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  font-family: 'JetBrains Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: none;
+  background: rgba(0, 0, 0, 0.3);
+  color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.variables-section textarea:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+/* Placeholder text styling */
+.prompt-section textarea::placeholder,
+.variables-section textarea::placeholder,
+.global-variables textarea::placeholder,
+.multi-step-name::placeholder,
+.multi-step-description::placeholder,
+.step-name-input::placeholder,
+.output-variable-input::placeholder {
+  color: #666;
+  opacity: 1;
 }
 
 .no-step-selected {
@@ -309,7 +390,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #666;
+  color: #a0a0a0;
   font-style: italic;
   text-align: center;
 }

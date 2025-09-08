@@ -7,13 +7,19 @@ interface MultiStepPromptEditorProps {
   onMultiStepPromptChange: (multiStepPrompt: MultiStepPrompt) => void;
   onExecute: () => void;
   isExecuting: boolean;
+  onOpenSettings?: () => void;
+  onOpenDocuments?: () => void;
+  onOpenPromptManager?: () => void;
 }
 
 const MultiStepPromptEditor: React.FC<MultiStepPromptEditorProps> = ({
   multiStepPrompt,
   onMultiStepPromptChange,
   onExecute,
-  isExecuting
+  isExecuting,
+  onOpenSettings,
+  onOpenDocuments,
+  onOpenPromptManager
 }) => {
   const [activeStepId, setActiveStepId] = useState<string>(multiStepPrompt.steps[0]?.id || '');
   const [draggedStepId, setDraggedStepId] = useState<string | null>(null);
@@ -131,13 +137,42 @@ const MultiStepPromptEditor: React.FC<MultiStepPromptEditorProps> = ({
             rows={2}
           />
         </div>
-        <button
-          className={`execute-btn ${isExecuting ? 'executing' : ''}`}
-          onClick={onExecute}
-          disabled={isExecuting}
-        >
-          {isExecuting ? 'Executing...' : 'Execute Multi-Step'}
-        </button>
+        <div className="header-actions">
+          {onOpenPromptManager && (
+            <button 
+              className="prompt-manager-btn"
+              onClick={onOpenPromptManager}
+              title="Browse Prompts"
+            >
+              📁 Prompts
+            </button>
+          )}
+          {onOpenDocuments && (
+            <button 
+              className="documents-btn"
+              onClick={onOpenDocuments}
+              title="Document Manager"
+            >
+              📚 Documents
+            </button>
+          )}
+          {onOpenSettings && (
+            <button 
+              className="settings-btn"
+              onClick={onOpenSettings}
+              title="Settings"
+            >
+              ⚙️ Settings
+            </button>
+          )}
+          <button
+            className={`execute-btn ${isExecuting ? 'executing' : ''}`}
+            onClick={onExecute}
+            disabled={isExecuting}
+          >
+            {isExecuting ? 'Executing...' : 'Execute Multi-Step'}
+          </button>
+        </div>
       </div>
 
       <div className="multi-step-content">

@@ -434,46 +434,66 @@ Case 3: rag_context is empty but user_intent is clear → Output a generic suppo
         {
           id: 'intent-detection-step',
           name: 'Intent Detection & Suggestions',
-          prompt: `# Intent Detection for Email Support
+          prompt: `You are an intent clarity evaluator for an email-support LLM.
 
-**Purpose:** Analyze the email context and user intent to determine if the intent is clear enough for email drafting, or if suggestions are needed.
+You will receive the following input variables:
 
-**Input Variables:**
-- user_intent: {{user_intent}}
-- email_thread: {{email_thread}}
-- chat_history: {{chat_history}}
+Input Variables:
 
-**Decision Logic:**
-Determine if the user_intent is clear and actionable:
+user_intent: {{user_intent}}
 
-1. **Intent is CLEAR if:**
-   - user_intent is a non-empty, specific string
-   - user_intent is not placeholder text like "", "null", "none", "{{user_intent}}", etc.
-   - user_intent provides actionable guidance for email response
+email_thread: {{email_thread}}
 
-2. **Intent is UNCLEAR if:**
-   - user_intent is empty, null, or contains placeholder values
-   - user_intent is too vague or ambiguous
-   - user_intent doesn't provide clear direction
+chat_history: {{chat_history}}
 
-**Output Format:**
-Return a JSON object with exactly this structure:
+rag_context: {{rag_context}}
 
-\`\`\`json
+agent_info: {{agent_info}}
+
+Your Task
+
+Determine whether user_intent is clear or unclear.
+
+Absolute Rules (follow in order - NEVER deviate)
+
+1. If user_intent is empty, null, undefined, or contains only whitespace → ALWAYS return "unclear". No exceptions ever.
+
+2. If user_intent is non-empty:
+   - If it explicitly states a specific, actionable goal → return "clear"
+   - Otherwise (vague/ambiguous) → return "unclear"
+
+CRITICAL: Empty user_intent must ALWAYS result in "unclear" status. Never return "clear" for empty intent.
+
+Output Format
+
+Return only one JSON object. Do not add explanations or text.
+
+If clear, return exactly:
+
+{ "status": "clear" }
+
+If unclear, return exactly:
+
 {
-  "intent_clear": true/false,
-  "user_intent": "the actual intent if clear, or empty string if unclear",
-  "suggested_intents": ["intent 1", "intent 2", "intent 3", "intent 4", "intent 5"]
+  "status": "unclear",
+  "suggested_intents": [
+    "Possible intent 1",
+    "Possible intent 2",
+    "Possible intent 3",
+    "Possible intent 4",
+    "Possible intent 5"
+  ]
 }
-\`\`\`
 
-**Rules:**
-- If intent_clear is true: include the user_intent and leave suggested_intents empty
-- If intent_clear is false: set user_intent to empty string and provide 5 specific, actionable intent suggestions based on the email_thread content
-- Focus suggestions on common support scenarios
-- Make suggestions specific to the email content, not generic
+Constraints
 
-Only return the JSON object, nothing else.`,
+Suggested intents must be derived from email_thread and rag_context.
+
+Suggested intents must be concise (3–7 words each).
+
+Always generate exactly 5 unique suggestions when unclear.
+
+Never output explanations, reasoning, or extra text outside the JSON.`,
           variables: '{}',
           order: 1,
           outputVariable: 'intent_analysis'
@@ -496,12 +516,12 @@ Only return the JSON object, nothing else.`,
 **Processing Instructions:**
 
 1. **Parse the intent analysis** from step 1
-2. **If intent was unclear** (intent_clear: false):
+2. **If status is "unclear"**:
    - Return the suggested_intents as a JSON array
    - Do NOT draft an email
    - Format: ["intent 1", "intent 2", "intent 3", "intent 4", "intent 5"]
 
-3. **If intent was clear** (intent_clear: true):
+3. **If status is "clear"**:
    - Use the user_intent to draft an email
    - Follow email drafting rules below
 
@@ -524,12 +544,12 @@ Only return the JSON object, nothing else.`,
 
 **Output Format:**
 
-Case 1 - Intent was unclear (intent_clear: false from step 1):
+Case 1 - Intent was unclear (status: "unclear" from step 1):
 \`\`\`json
 ["Acknowledge the issue and suggest system requirement checks", "Guide user to verify Chrome extension permissions", "Ask user to check for conflicting Gmail extensions", "Request confirmation of internet connectivity", "Suggest escalating to IT policies and firewall checks"]
 \`\`\`
 
-Case 2 - Intent was clear (intent_clear: true from step 1):
+Case 2 - Intent was clear (status: "clear" from step 1):
 Draft the complete email response addressing the user_intent.
 
 Only return the appropriate output based on the intent analysis from step 1.`,

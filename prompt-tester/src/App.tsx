@@ -317,6 +317,9 @@ function App() {
               onMultiStepPromptChange={setCurrentMultiStepPrompt}
               onExecute={executeMultiStepPrompt}
               isExecuting={isExecuting}
+              onOpenSettings={() => setShowSettings(true)}
+              onOpenDocuments={() => setShowDocumentManager(true)}
+              onOpenPromptManager={() => setShowMultiStepManager(true)}
             />
           ) : (
             <div className="multi-step-empty">

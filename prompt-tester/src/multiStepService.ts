@@ -75,6 +75,9 @@ export class MultiStepService {
 
           // Execute the step
           await this.apiService.executePrompt(processedPrompt, stepStreaming);
+          
+          // Log the final prompt for debugging
+          console.log(`Step ${i + 1} (${step.name}) - Final processed prompt:`, processedPrompt);
 
           const stepEndTime = Date.now();
           const stepExecutionTime = stepEndTime - stepStartTime;
