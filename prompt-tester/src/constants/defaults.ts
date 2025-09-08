@@ -473,10 +473,6 @@ Return a JSON object with exactly this structure:
 - Focus suggestions on common support scenarios
 - Make suggestions specific to the email content, not generic
 
-**Examples:**
-- Clear intent: "Help user troubleshoot Chrome extension installation issues"
-- Unclear intent: "" or "help" or "respond to email"
-
 Only return the JSON object, nothing else.`,
           variables: '{}',
           order: 1,

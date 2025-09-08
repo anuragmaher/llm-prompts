@@ -24,6 +24,7 @@ export class MultiStepService {
     const startTime = Date.now();
     const results: StepExecutionResult[] = [];
     let accumulatedVariables: any = {};
+    let firstPaintTime: number | undefined;
 
     try {
       // Parse global variables
@@ -55,6 +56,10 @@ export class MultiStepService {
           const stepStreaming: StreamingCallback = {
             onToken: (token: string) => {
               stepOutput += token;
+              // Capture first paint time when the last step starts painting
+              if (i === sortedSteps.length - 1 && !firstPaintTime) {
+                firstPaintTime = Date.now() - startTime;
+              }
               streaming?.onStepToken?.(i, token);
             },
             onFirstByte: (firstByteTime: number) => {
@@ -92,6 +97,29 @@ export class MultiStepService {
 
           streaming?.onStepComplete?.(i, stepResult);
 
+          // Check for early termination condition
+          if (stepOutput.trim().toLowerCase().includes('all_requirements_met')) {
+            const endTime = Date.now();
+            const totalExecutionTime = endTime - startTime;
+            const success = results.every(result => !result.error);
+            const finalOutput = stepOutput;
+
+            const multiStepResult: MultiStepExecutionResult = {
+              multiStepPromptId: multiStepPrompt.id,
+              results,
+              totalExecutionTime,
+              firstPaintTime,
+              success,
+              finalOutput,
+              executedAt: startTime,
+              terminatedEarly: true,
+              terminationReason: 'All requirements met'
+            };
+
+            streaming?.onComplete?.(multiStepResult);
+            return multiStepResult;
+          }
+
         } catch (error) {
           const stepEndTime = Date.now();
           const stepExecutionTime = stepEndTime - stepStartTime;
@@ -124,9 +152,11 @@ export class MultiStepService {
         multiStepPromptId: multiStepPrompt.id,
         results,
         totalExecutionTime,
+        firstPaintTime,
         success,
         finalOutput,
         executedAt: startTime,
+        terminatedEarly: false,
       };
 
       streaming?.onComplete?.(multiStepResult);
@@ -140,9 +170,11 @@ export class MultiStepService {
         multiStepPromptId: multiStepPrompt.id,
         results,
         totalExecutionTime: Date.now() - startTime,
+        firstPaintTime,
         success: false,
         finalOutput: '',
         executedAt: startTime,
+        terminatedEarly: false,
       };
     }
   }

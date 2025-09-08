@@ -263,7 +263,10 @@ function App() {
         setLlmResponse(prev => prev + `\n\n[Step ${stepIndex + 1} completed in ${result.executionTime}ms]\n\n`);
       },
       onComplete: (result) => {
-        const timeString = `\n\n---\nTotal execution time: ${result.totalExecutionTime}ms`;
+        let timeString = `\n\n---\nTotal execution time: ${result.totalExecutionTime}ms${result.firstPaintTime ? `\nFirst paint time: ${result.firstPaintTime}ms` : ''}`;
+        if (result.terminatedEarly) {
+          timeString += `\n🎯 Execution terminated early: ${result.terminationReason}`;
+        }
         setLlmResponse(prev => prev + timeString);
         setMultiStepExecutionResults(prev => [result, ...prev]);
         setIsExecuting(false);

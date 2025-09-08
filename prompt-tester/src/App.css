@@ -91,7 +91,7 @@ body {
 }
 
 .output-panel {
-  width: 50%;
+  width: 30%;
   background: rgba(255, 255, 255, 0.02);
   backdrop-filter: blur(20px);
   display: flex;
@@ -183,6 +183,8 @@ body {
   display: flex;
   flex-direction: column;
   transition: flex 0.3s ease;
+  min-height: 0;
+  flex: 1;
 }
 
 .output-right.collapsed {
@@ -292,7 +294,7 @@ body {
 
 .output-content {
   width: 100%;
-  height: calc(100% - 60px);
+  flex: 1;
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
@@ -301,6 +303,7 @@ body {
   font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
   white-space: pre-wrap;
   overflow-y: auto;
+  min-height: 0;
   color: #e4e6ea;
   line-height: 1.5;
   margin: 20px;

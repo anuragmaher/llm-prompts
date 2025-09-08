@@ -74,9 +74,12 @@ export interface MultiStepExecutionResult {
   multiStepPromptId: string;
   results: StepExecutionResult[];
   totalExecutionTime: number;
+  firstPaintTime?: number;
   success: boolean;
   finalOutput: string;
   executedAt: number;
+  terminatedEarly?: boolean;
+  terminationReason?: string;
 }
 
 
