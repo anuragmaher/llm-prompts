@@ -41,4 +41,42 @@ export interface RAGContext {
   sources: SavedDocument[];
 }
 
+export interface PromptStep {
+  id: string;
+  name: string;
+  prompt: string;
+  variables: string; // JSON string
+  order: number;
+  outputVariable?: string; // Variable name to store this step's output for next step
+}
+
+export interface MultiStepPrompt {
+  id: string;
+  name: string;
+  description: string;
+  steps: PromptStep[];
+  globalVariables: string; // JSON string - variables available to all steps
+  createdAt: number;
+  lastModified: number;
+}
+
+export interface StepExecutionResult {
+  stepId: string;
+  stepName: string;
+  input: string;
+  output: string;
+  executionTime: number;
+  firstByteTime?: number;
+  error?: string;
+}
+
+export interface MultiStepExecutionResult {
+  multiStepPromptId: string;
+  results: StepExecutionResult[];
+  totalExecutionTime: number;
+  success: boolean;
+  finalOutput: string;
+  executedAt: number;
+}
+
 

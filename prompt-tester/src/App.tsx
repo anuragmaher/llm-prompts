@@ -1,46 +1,36 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import './App.css';
 import Settings, { ApiConfig } from './Settings';
-import ApiService, { StreamingCallback } from './apiService';
-import PromptManager from './PromptManager';
-import VariableManager from './VariableManager';
+import ApiService from './apiService';
 import EvaluationPanel from './EvaluationPanel';
 import { EvaluationConfig, OverallEvaluation } from './evaluationService';
-import { SavedPrompt, SavedVariableSet } from './types';
-import { DEFAULT_PROMPT, DEFAULT_VARIABLES, getPredefinedVariableSets, NEW_PROMPT_TEMPLATE, NEW_VARIABLES_TEMPLATE } from './constants/defaults';
+import { MultiStepPrompt, MultiStepExecutionResult } from './types';
+import { getPredefinedMultiStepPrompts } from './constants/defaults';
 import { DocumentService, DocumentServiceConfig } from './documentService';
 import DocumentManager from './DocumentManager';
-import { substituteVariables as substituteVariablesUtil } from './utils/templating';
-import VariablesPanel from './components/VariablesPanel';
-import PromptPanel from './components/PromptPanel';
-import ProcessedPromptPanel from './components/ProcessedPromptPanel';
-import JsonPayloadPanel from './components/JsonPayloadPanel';
 import LlmResponsePanel from './components/LlmResponsePanel';
+import MultiStepPromptManager from './MultiStepPromptManager';
+import MultiStepPromptEditor from './MultiStepPromptEditor';
+import { MultiStepService, MultiStepStreamingCallback } from './multiStepService';
 
 // moved to constants/defaults.ts
 
 // types moved to src/types.ts
 
 function App() {
-  const [variables, setVariables] = useState<string>(DEFAULT_VARIABLES);
-  const [prompt, setPrompt] = useState<string>(DEFAULT_PROMPT);
-  const [processedPrompt, setProcessedPrompt] = useState<string>('');
+  // Multi-step prompt state (now the primary mode)
+  const [currentMultiStepPrompt, setCurrentMultiStepPrompt] = useState<MultiStepPrompt | null>(null);
+  const [savedMultiStepPrompts, setSavedMultiStepPrompts] = useState<MultiStepPrompt[]>([]);
+  const [currentMultiStepPromptId, setCurrentMultiStepPromptId] = useState<string | null>(null);
+  const [showMultiStepManager, setShowMultiStepManager] = useState<boolean>(false);
+  const [multiStepExecutionResults, setMultiStepExecutionResults] = useState<MultiStepExecutionResult[]>([]);
+  
+  // Execution and UI state
   const [llmResponse, setLlmResponse] = useState<string>('');
-  const [firstByteTime, setFirstByteTime] = useState<number | null>(null);
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>([]);
-  const [currentPromptId, setCurrentPromptId] = useState<string | null>(null);
-  const [showPromptManager, setShowPromptManager] = useState<boolean>(false);
-  const [savedVariableSets, setSavedVariableSets] = useState<SavedVariableSet[]>([]);
-  const [currentVariableSetId, setCurrentVariableSetId] = useState<string | null>(null);
-  const [showVariableManager, setShowVariableManager] = useState<boolean>(false);
   const [showDocumentManager, setShowDocumentManager] = useState<boolean>(false);
   const [documentConfig, setDocumentConfig] = useState<DocumentServiceConfig | null>(null);
-  const [leftPanelWidth, setLeftPanelWidth] = useState<number>(() => {
-    const saved = localStorage.getItem('llm-prompt-tester-left-panel-width');
-    return saved ? parseInt(saved, 10) : 320;
-  });
   const [collapsedSections, setCollapsedSections] = useState<{[key: string]: boolean}>(() => {
     const saved = localStorage.getItem('llm-prompt-tester-collapsed-sections');
     if (saved) {
@@ -48,19 +38,11 @@ function App() {
         return JSON.parse(saved);
       } catch {
         return {
-          variables: false,
-          prompt: false,
-          processedPrompt: false,
-          jsonPayload: false,
           llmResponse: false
         };
       }
     }
     return {
-      variables: false,
-      prompt: false,
-      processedPrompt: false,
-      jsonPayload: false,
       llmResponse: false
     };
   });
@@ -115,6 +97,7 @@ function App() {
   });
   const [apiService] = useState(() => new ApiService(apiConfig));
   const [documentService] = useState(() => new DocumentService());
+  const [multiStepService] = useState(() => new MultiStepService(apiService));
 
   useEffect(() => {
     const savedConfig = localStorage.getItem('llm-prompt-tester-config');
@@ -151,31 +134,30 @@ function App() {
       }
     }
 
-    // Load saved prompts
-    const savedPromptsData = localStorage.getItem('llm-prompt-tester-prompts');
-    if (savedPromptsData) {
-      try {
-        const prompts = JSON.parse(savedPromptsData);
-        setSavedPrompts(prompts);
-      } catch (error) {
-        console.warn('Failed to load saved prompts');
-      }
-    }
+    // Legacy single prompts and variables are no longer supported
+    // Multi-step prompts with global variables are the only supported format now
 
-    // Load saved variable sets
-    const savedVariableSetsData = localStorage.getItem('llm-prompt-tester-variable-sets');
-    if (savedVariableSetsData) {
+    // Load saved multi-step prompts
+    const savedMultiStepPromptsData = localStorage.getItem('llm-prompt-tester-multi-step-prompts');
+    if (savedMultiStepPromptsData) {
       try {
-        const variableSets = JSON.parse(savedVariableSetsData);
-        setSavedVariableSets(variableSets);
+        const multiStepPrompts = JSON.parse(savedMultiStepPromptsData);
+        setSavedMultiStepPrompts(multiStepPrompts);
       } catch (error) {
-        console.warn('Failed to load saved variable sets');
+        console.warn('Failed to load saved multi-step prompts');
       }
     } else {
-      // Initialize with predefined variable sets on first load
-      const predefinedVariableSets = getPredefinedVariableSets();
-      setSavedVariableSets(predefinedVariableSets);
-      localStorage.setItem('llm-prompt-tester-variable-sets', JSON.stringify(predefinedVariableSets));
+      // Initialize with predefined multi-step prompts on first load
+      const predefinedMultiStepPrompts = getPredefinedMultiStepPrompts();
+      setSavedMultiStepPrompts(predefinedMultiStepPrompts);
+      localStorage.setItem('llm-prompt-tester-multi-step-prompts', JSON.stringify(predefinedMultiStepPrompts));
+      
+      // Auto-load the first multi-step prompt
+      if (predefinedMultiStepPrompts.length > 0) {
+        const firstPrompt = predefinedMultiStepPrompts[0];
+        setCurrentMultiStepPrompt(firstPrompt);
+        setCurrentMultiStepPromptId(firstPrompt.id);
+      }
     }
   }, [apiService]);
 
@@ -201,346 +183,115 @@ function App() {
     console.log('Evaluation completed:', evaluation);
   }, []);
 
-  const savePromptsToStorage = useCallback((prompts: SavedPrompt[]) => {
-    localStorage.setItem('llm-prompt-tester-prompts', JSON.stringify(prompts));
+
+  // Multi-step prompt management functions
+  const saveMultiStepPromptsToStorage = useCallback((multiStepPrompts: MultiStepPrompt[]) => {
+    localStorage.setItem('llm-prompt-tester-multi-step-prompts', JSON.stringify(multiStepPrompts));
   }, []);
 
-  const saveVariableSetsToStorage = useCallback((variableSets: SavedVariableSet[]) => {
-    localStorage.setItem('llm-prompt-tester-variable-sets', JSON.stringify(variableSets));
-  }, []);
-
-  const saveCurrentPrompt = useCallback((name: string) => {
+  const saveCurrentMultiStepPrompt = useCallback((name: string) => {
+    if (!currentMultiStepPrompt) return;
+    
     const now = Date.now();
-    const newPrompt: SavedPrompt = {
-      id: currentPromptId || Date.now().toString(),
+    const updatedPrompt: MultiStepPrompt = {
+      ...currentMultiStepPrompt,
       name,
-      prompt,
-      variables,
-      createdAt: currentPromptId ? savedPrompts.find(p => p.id === currentPromptId)?.createdAt || now : now,
       lastModified: now
     };
 
-    const updatedPrompts = currentPromptId 
-      ? savedPrompts.map(p => p.id === currentPromptId ? newPrompt : p)
-      : [...savedPrompts, newPrompt];
+    const updatedPrompts = currentMultiStepPromptId 
+      ? savedMultiStepPrompts.map(p => p.id === currentMultiStepPromptId ? updatedPrompt : p)
+      : [...savedMultiStepPrompts, updatedPrompt];
     
-    setSavedPrompts(updatedPrompts);
-    savePromptsToStorage(updatedPrompts);
-    setCurrentPromptId(newPrompt.id);
-  }, [prompt, variables, currentPromptId, savedPrompts, savePromptsToStorage]);
+    setSavedMultiStepPrompts(updatedPrompts);
+    saveMultiStepPromptsToStorage(updatedPrompts);
+    setCurrentMultiStepPromptId(updatedPrompt.id);
+  }, [currentMultiStepPrompt, currentMultiStepPromptId, savedMultiStepPrompts, saveMultiStepPromptsToStorage]);
 
-  const loadPrompt = useCallback((promptId: string) => {
-    const savedPrompt = savedPrompts.find(p => p.id === promptId);
+  const loadMultiStepPrompt = useCallback((promptId: string) => {
+    const savedPrompt = savedMultiStepPrompts.find(p => p.id === promptId);
     if (savedPrompt) {
-      setPrompt(savedPrompt.prompt);
-      setVariables(savedPrompt.variables);
-      setCurrentPromptId(promptId);
-      setProcessedPrompt('');
+      setCurrentMultiStepPrompt(savedPrompt);
+      setCurrentMultiStepPromptId(promptId);
       setLlmResponse('');
     }
-  }, [savedPrompts]);
+  }, [savedMultiStepPrompts]);
 
-  const deletePrompt = useCallback((promptId: string) => {
-    const updatedPrompts = savedPrompts.filter(p => p.id !== promptId);
-    setSavedPrompts(updatedPrompts);
-    savePromptsToStorage(updatedPrompts);
+  const deleteMultiStepPrompt = useCallback((promptId: string) => {
+    const updatedPrompts = savedMultiStepPrompts.filter(p => p.id !== promptId);
+    setSavedMultiStepPrompts(updatedPrompts);
+    saveMultiStepPromptsToStorage(updatedPrompts);
     
-    if (currentPromptId === promptId) {
-      setCurrentPromptId(null);
+    if (currentMultiStepPromptId === promptId) {
+      setCurrentMultiStepPromptId(null);
+      setCurrentMultiStepPrompt(null);
     }
-  }, [savedPrompts, currentPromptId, savePromptsToStorage]);
+  }, [savedMultiStepPrompts, currentMultiStepPromptId, saveMultiStepPromptsToStorage]);
 
-  const createNewPrompt = useCallback(() => {
-    setPrompt(NEW_PROMPT_TEMPLATE);
-    setVariables(NEW_VARIABLES_TEMPLATE);
-    setCurrentPromptId(null);
-    setProcessedPrompt('');
+  const createNewMultiStepPrompt = useCallback(() => {
+    const newPrompt = multiStepService.createMultiStepTemplate();
+    setCurrentMultiStepPrompt(newPrompt);
+    setCurrentMultiStepPromptId(null);
     setLlmResponse('');
-  }, []);
+  }, [multiStepService]);
 
-  const saveCurrentVariableSet = useCallback((name: string) => {
-    const now = Date.now();
-    const newVariableSet: SavedVariableSet = {
-      id: currentVariableSetId || Date.now().toString(),
-      name,
-      variables,
-      createdAt: currentVariableSetId ? savedVariableSets.find(v => v.id === currentVariableSetId)?.createdAt || now : now,
-      lastModified: now
-    };
-
-    const updatedVariableSets = currentVariableSetId 
-      ? savedVariableSets.map(v => v.id === currentVariableSetId ? newVariableSet : v)
-      : [...savedVariableSets, newVariableSet];
+  const hasUnsavedMultiStepChanges = useCallback(() => {
+    if (!currentMultiStepPrompt) return false;
     
-    setSavedVariableSets(updatedVariableSets);
-    saveVariableSetsToStorage(updatedVariableSets);
-    setCurrentVariableSetId(newVariableSet.id);
-  }, [variables, currentVariableSetId, savedVariableSets, saveVariableSetsToStorage]);
-
-  const loadVariableSet = useCallback((variableSetId: string) => {
-    const savedVariableSet = savedVariableSets.find(v => v.id === variableSetId);
-    if (savedVariableSet) {
-      setVariables(savedVariableSet.variables);
-      setCurrentVariableSetId(variableSetId);
-      setProcessedPrompt('');
-      setLlmResponse('');
-    }
-  }, [savedVariableSets]);
-
-  const deleteVariableSet = useCallback((variableSetId: string) => {
-    const updatedVariableSets = savedVariableSets.filter(v => v.id !== variableSetId);
-    setSavedVariableSets(updatedVariableSets);
-    saveVariableSetsToStorage(updatedVariableSets);
+    if (!currentMultiStepPromptId) return true;
     
-    if (currentVariableSetId === variableSetId) {
-      setCurrentVariableSetId(null);
-    }
-  }, [savedVariableSets, currentVariableSetId, saveVariableSetsToStorage]);
-
-  const createNewVariableSet = useCallback(() => {
-    setVariables(NEW_VARIABLES_TEMPLATE);
-    setCurrentVariableSetId(null);
-    setProcessedPrompt('');
-    setLlmResponse('');
-  }, []);
-
-  // Detect if current prompt has unsaved changes
-  const hasUnsavedChanges = useCallback(() => {
-    const defaultTemplate = NEW_PROMPT_TEMPLATE;
-    const defaultVars = NEW_VARIABLES_TEMPLATE;
-    
-    if (!currentPromptId) return prompt !== defaultTemplate || variables !== defaultVars;
-    
-    const savedPrompt = savedPrompts.find(p => p.id === currentPromptId);
+    const savedPrompt = savedMultiStepPrompts.find(p => p.id === currentMultiStepPromptId);
     if (!savedPrompt) return true;
     
-    return savedPrompt.prompt !== prompt || savedPrompt.variables !== variables;
-  }, [currentPromptId, savedPrompts, prompt, variables]);
+    return JSON.stringify(savedPrompt) !== JSON.stringify(currentMultiStepPrompt);
+  }, [currentMultiStepPrompt, currentMultiStepPromptId, savedMultiStepPrompts]);
 
-  // Detect if current variables have unsaved changes
-  const hasUnsavedVariableChanges = useCallback(() => {
-    if (!currentVariableSetId) return variables !== JSON.stringify({
-      "agent_info": {
-        "name": "Anurag Maherchandani",
-        "role": "AI Leader"
-      },
-      "email_thread": [
-        {
-          "from": "Sarah Johnson <sarah.johnson@example.com>",
-          "to": "Anurag Maherchandani <anurag@grexit.com>",
-          "content": "Hi Anurag, just checking if we are still on for our meeting tomorrow at 10 AM?"
-        }
-      ],
-      "chat_history": "You previously confirmed 10 AM works and asked whether we'd use the west conference room.",
-      "user_intent": "Confirm the meeting time politely and express that you're looking forward to it."
-    }, null, 2);
-    
-    const savedVariableSet = savedVariableSets.find(v => v.id === currentVariableSetId);
-    if (!savedVariableSet) return true;
-    
-    return savedVariableSet.variables !== variables;
-  }, [currentVariableSetId, savedVariableSets, variables]);
+  const executeMultiStepPrompt = useCallback(async () => {
+    if (!currentMultiStepPrompt) return;
 
-
-  const substituteVariables = useCallback((text: string): string => {
-    return substituteVariablesUtil(text, variables);
-  }, [variables]);
-
-  const executePrompt = useCallback(async () => {
     setIsExecuting(true);
-    setFirstByteTime(null);
-    
-    // Extract query for RAG from variables (email content, user intent, etc.)
-    let ragContext = null;
-    try {
-      console.log('🚀 Starting RAG integration process...');
-      console.log('📋 Current variables:', variables);
-      
-      const parsedVariables = JSON.parse(variables);
-      console.log('✅ Variables parsed successfully:', parsedVariables);
-      
-      // Construct RAG query from available information
-      let ragQuery = '';
-      if (parsedVariables.email_thread && Array.isArray(parsedVariables.email_thread)) {
-        // Use email content as query
-        ragQuery = parsedVariables.email_thread.map((email: any) => email.content || '').join(' ');
-        console.log('📧 Using email_thread as RAG query source');
-      } else if (parsedVariables.user_intent) {
-        // Use user intent as query
-        ragQuery = parsedVariables.user_intent;
-        console.log('🎯 Using user_intent as RAG query source');
-      } else if (parsedVariables.body) {
-        // For support emails, use body content
-        ragQuery = parsedVariables.body;
-        console.log('📝 Using body as RAG query source');
+    setLlmResponse('');
+
+    const streaming: MultiStepStreamingCallback = {
+      onStepStart: (stepName: string, stepIndex: number, totalSteps: number) => {
+        setLlmResponse(prev => prev + `\n--- Step ${stepIndex}/${totalSteps}: ${stepName} ---\n`);
+      },
+      onStepToken: (stepIndex: number, token: string) => {
+        setLlmResponse(prev => prev + token);
+      },
+      onStepComplete: (stepIndex: number, result) => {
+        setLlmResponse(prev => prev + `\n\n[Step ${stepIndex + 1} completed in ${result.executionTime}ms]\n\n`);
+      },
+      onComplete: (result) => {
+        const timeString = `\n\n---\nTotal execution time: ${result.totalExecutionTime}ms`;
+        setLlmResponse(prev => prev + timeString);
+        setMultiStepExecutionResults(prev => [result, ...prev]);
+        setIsExecuting(false);
+      },
+      onError: (error, stepIndex) => {
+        const errorMsg = stepIndex !== undefined 
+          ? `\nError in step ${stepIndex + 1}: ${error}` 
+          : `\nError: ${error}`;
+        setLlmResponse(prev => prev + errorMsg);
+        setIsExecuting(false);
       }
-      
-      console.log('🔍 Extracted RAG query:', ragQuery);
-      console.log('⚙️ Document config available:', !!documentConfig);
-      console.log('📚 Document service available:', !!documentService);
-      
-      // Check if there are any documents available
-      if (documentService) {
-        const savedDocuments = documentService.getSavedDocuments();
-        console.log('📄 Saved documents count:', savedDocuments.length);
-        if (savedDocuments.length > 0) {
-          console.log('📋 Available documents:', savedDocuments.map(doc => ({
-            name: doc.name,
-            chunks: doc.chunks.length,
-            fileType: doc.fileType
-          })));
-        } else {
-          console.log('⚠️ No documents found in knowledge base');
-        }
-      }
-      
-      // Query RAG system if we have a valid query and document service is configured
-      if (ragQuery.trim() && documentConfig) {
-        console.log('🔍 Querying RAG system with:', ragQuery);
-        setLlmResponse('Executing prompt...\n\nProvider: ' + apiConfig.provider.toUpperCase() + '\n\nQuerying knowledge base...');
-        
-        try {
-          ragContext = await documentService.searchDocuments(ragQuery.trim(), 3);
-          console.log('📚 RAG context retrieved:');
-          console.log('Query:', ragContext?.query);
-          console.log('Found', ragContext?.relevantChunks?.length || 0, 'relevant chunks');
-          console.log('Source documents:', ragContext?.sources?.length || 0);
-          
-          // Log each chunk with details
-          if (ragContext?.relevantChunks) {
-            ragContext.relevantChunks.forEach((chunk, index) => {
-              console.log(`📄 Chunk ${index + 1}:`, {
-                id: chunk.id,
-                contentPreview: chunk.content.substring(0, 200) + '...',
-                contentLength: chunk.content.length,
-                pineconeId: chunk.pineconeId
-              });
-            });
-          }
-          
-          // Log source document info
-          if (ragContext?.sources) {
-            ragContext.sources.forEach((source, index) => {
-              console.log(`📋 Source ${index + 1}:`, {
-                name: source.name,
-                fileType: source.fileType,
-                chunks: source.chunks.length,
-                createdAt: new Date(source.createdAt).toLocaleString()
-              });
-            });
-          }
-          
-        } catch (error) {
-          console.warn('RAG query failed:', error);
-          // Continue without RAG context
-        }
-      }
-      
-      // Add RAG context to variables
-      const enrichedVariables = {
-        ...parsedVariables,
-        ...(ragContext && { rag_context: ragContext })
-      };
-      
-      // Log the final enriched variables
-      if (ragContext) {
-        console.log('🔧 Variables enriched with RAG context');
-        console.log('📝 RAG context structure:', {
-          query: ragContext.query,
-          chunksCount: ragContext.relevantChunks?.length || 0,
-          sourcesCount: ragContext.sources?.length || 0,
-          totalContextLength: ragContext.relevantChunks?.reduce((sum, chunk) => sum + chunk.content.length, 0) || 0
-        });
-      } else {
-        console.log('⚠️ No RAG context available - proceeding without knowledge base data');
-      }
-      
-      // Update variables with RAG context for substitution
-      const enrichedVariablesString = JSON.stringify(enrichedVariables, null, 2);
-      
-      // Debug: Check if prompt contains rag_context placeholder
-      const hasRagPlaceholder = prompt.includes('{{rag_context}}');
-      console.log('🔧 Prompt contains {{rag_context}}:', hasRagPlaceholder);
-      console.log('📝 Original prompt length:', prompt.length);
-      
-      // Generate both original and enriched prompts for comparison
-      const originalPrompt = substituteVariablesUtil(prompt, variables);
-      const substitutedPrompt = substituteVariablesUtil(prompt, enrichedVariablesString);
-      
-      console.log('📊 Prompt comparison:');
-      console.log('- Original prompt length:', originalPrompt.length);
-      console.log('- Enriched prompt length:', substitutedPrompt.length);
-      console.log('- Length difference:', substitutedPrompt.length - originalPrompt.length);
-      
-      if (ragContext && hasRagPlaceholder) {
-        console.log('✅ RAG context should be substituted into prompt');
-        
-        // Show a preview of where RAG context appears in the prompt
-        const ragContextStart = substitutedPrompt.indexOf('"query":');
-        if (ragContextStart > -1) {
-          const preview = substitutedPrompt.substring(Math.max(0, ragContextStart - 50), ragContextStart + 200);
-          console.log('🔍 RAG context preview in prompt:', preview + '...');
-        }
-      } else {
-        console.log('⚠️ RAG context will NOT be used in prompt:', {
-          hasRAGContext: !!ragContext,
-          hasPlaceholder: hasRagPlaceholder
-        });
-      }
-      
-      console.log('✅ Final prompt prepared with', ragContext ? 'RAG-enriched' : 'original', 'variables');
-      
-      // Set the processed prompt immediately
-      setProcessedPrompt(substitutedPrompt);
-      setLlmResponse('Executing prompt...\n\nProvider: ' + apiConfig.provider.toUpperCase() + '\n\nProcessing your request...' + (ragContext ? '\n\n✅ Knowledge base consulted' : ''));
-      
-    } catch (error) {
-      console.warn('Failed to parse variables or query RAG:', error);
-      // Fallback to original behavior
-      const substitutedPrompt = substituteVariables(prompt);
-      setProcessedPrompt(substitutedPrompt);
-      setLlmResponse('Executing prompt...\n\nProvider: ' + apiConfig.provider.toUpperCase() + '\n\nProcessing your request...');
-    }
-    
+    };
+
     try {
       const validation = apiService.validateConfig();
       if (!validation.isValid) {
         setLlmResponse(`Configuration Error:\n${validation.errors.join('\n')}\n\nPlease check your API credentials in Settings.`);
+        setIsExecuting(false);
         return;
       }
 
-      let streamingContent = '';
-      const streaming: StreamingCallback = {
-        onToken: (token: string) => {
-          streamingContent += token;
-          setLlmResponse(streamingContent);
-        },
-        onFirstByte: (firstByteTime: number) => {
-          setFirstByteTime(firstByteTime);
-          setLlmResponse(`${streamingContent}\n\n---\nFirst byte: ${firstByteTime}ms (streaming...)`);
-        },
-        onComplete: (response) => {
-          const timeString = response.executionTime 
-            ? `\n\n---\nFirst byte: ${response.firstByteTime}ms | Total time: ${response.executionTime}ms` 
-            : '';
-          setLlmResponse(`${response.data || 'No response received'}${timeString}`);
-          setIsExecuting(false);
-        },
-        onError: (error) => {
-          const timeString = firstByteTime ? ` (First byte: ${firstByteTime}ms)` : '';
-          setLlmResponse(`Error: ${error}${timeString}`);
-          setIsExecuting(false);
-        }
-      };
-
-      // Use the processed prompt (which might include RAG context)
-      const finalPrompt = processedPrompt || substituteVariables(prompt);
-      await apiService.executePrompt(finalPrompt, streaming);
+      await multiStepService.executeMultiStepPrompt(currentMultiStepPrompt, streaming);
     } catch (error) {
       setLlmResponse(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setIsExecuting(false);
     }
-  }, [prompt, variables, documentService, documentConfig, apiConfig.provider, apiService, firstByteTime]);
+  }, [currentMultiStepPrompt, apiService, multiStepService]);
+
 
   const toggleSection = useCallback((section: string) => {
     setCollapsedSections(prev => {
@@ -553,95 +304,54 @@ function App() {
     });
   }, []);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = leftPanelWidth;
-    let currentWidth = startWidth;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      currentWidth = Math.max(200, Math.min(800, startWidth + e.clientX - startX));
-      setLeftPanelWidth(currentWidth);
-    };
-
-    const handleMouseUp = () => {
-      localStorage.setItem('llm-prompt-tester-left-panel-width', currentWidth.toString());
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  }, [leftPanelWidth]);
-
   return (
     <div className="app">
-      <div 
-        className={`left-panel ${collapsedSections.variables ? 'collapsed' : ''}`}
-        style={{ width: collapsedSections.variables ? 'auto' : `${leftPanelWidth}px` }}
-      >
-        <VariablesPanel
-          variables={variables}
-          onVariablesChange={setVariables}
-          collapsed={collapsedSections.variables}
-          onToggle={() => toggleSection('variables')}
-          hasUnsaved={hasUnsavedVariableChanges()}
-          onOpenManager={() => setShowVariableManager(true)}
-        />
-      </div>
-
-      {!collapsedSections.variables && (
-        <div 
-          className="resize-handle"
-          onMouseDown={handleMouseDown}
-        />
-      )}
-
-      <div className="right-panel">
-        <PromptPanel
-          prompt={prompt}
-          onPromptChange={setPrompt}
-          collapsed={collapsedSections.prompt}
-          onToggle={() => toggleSection('prompt')}
-          onOpenPromptManager={() => setShowPromptManager(true)}
-          hasUnsaved={hasUnsavedChanges()}
-          onOpenSettings={() => setShowSettings(true)}
-          onOpenDocuments={() => setShowDocumentManager(true)}
-          onExecute={executePrompt}
-          isExecuting={isExecuting}
-        />
+      <div className="main-panel">
+        <div className="editor-section">
+          {currentMultiStepPrompt ? (
+            <MultiStepPromptEditor
+              multiStepPrompt={currentMultiStepPrompt}
+              onMultiStepPromptChange={setCurrentMultiStepPrompt}
+              onExecute={executeMultiStepPrompt}
+              isExecuting={isExecuting}
+            />
+          ) : (
+            <div className="multi-step-empty">
+              <h2>Multi-Step Prompt Tester</h2>
+              <p>No multi-step prompt selected. Create or load a prompt to get started.</p>
+              <div className="empty-actions">
+                <button onClick={() => setShowMultiStepManager(true)}>
+                  📁 Browse Prompts
+                </button>
+                <button onClick={createNewMultiStepPrompt}>
+                  ✨ Create New Prompt
+                </button>
+                <button onClick={() => setShowSettings(true)}>
+                  ⚙️ Settings
+                </button>
+                <button onClick={() => setShowDocumentManager(true)}>
+                  📚 Documents
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="output-panel">
-          <div className="output-left">
-            <ProcessedPromptPanel
-              content={processedPrompt}
-              collapsed={collapsedSections.processedPrompt}
-              onToggle={() => toggleSection('processedPrompt')}
+          <LlmResponsePanel
+            response={llmResponse}
+            collapsed={collapsedSections.llmResponse}
+            onToggle={() => toggleSection('llmResponse')}
+          />
+          
+          <div className="evaluation-container">
+            <EvaluationPanel
+              variables={currentMultiStepPrompt?.globalVariables || '{}'}
+              llmResponse={llmResponse}
+              apiConfig={apiConfig}
+              evaluationConfig={evaluationConfig}
+              onEvaluationComplete={handleEvaluationComplete}
             />
-            <div className={`output-left-bottom ${collapsedSections.jsonPayload ? 'collapsed' : ''}`}>
-              <JsonPayloadPanel
-                variables={variables}
-                collapsed={collapsedSections.jsonPayload}
-                onToggle={() => toggleSection('jsonPayload')}
-              />
-            </div>
-          </div>
-          <div className="output-right-container">
-            <LlmResponsePanel
-              response={llmResponse}
-              collapsed={collapsedSections.llmResponse}
-              onToggle={() => toggleSection('llmResponse')}
-            />
-            
-            <div className="evaluation-container">
-              <EvaluationPanel
-                variables={variables}
-                llmResponse={llmResponse}
-                apiConfig={apiConfig}
-                evaluationConfig={evaluationConfig}
-                onEvaluationComplete={handleEvaluationComplete}
-              />
-            </div>
           </div>
         </div>
       </div>
@@ -657,35 +367,23 @@ function App() {
         onDocumentConfigChange={handleDocumentConfigChange}
       />
       
-      <PromptManager
-        isOpen={showPromptManager}
-        onClose={() => setShowPromptManager(false)}
-        savedPrompts={savedPrompts}
-        currentPromptId={currentPromptId}
-        onLoadPrompt={loadPrompt}
-        onDeletePrompt={deletePrompt}
-        onSavePrompt={saveCurrentPrompt}
-        onNewPrompt={createNewPrompt}
-        hasUnsavedChanges={hasUnsavedChanges()}
-      />
-      
-      <VariableManager
-        isOpen={showVariableManager}
-        onClose={() => setShowVariableManager(false)}
-        savedVariableSets={savedVariableSets}
-        currentVariableSetId={currentVariableSetId}
-        onLoadVariableSet={loadVariableSet}
-        onDeleteVariableSet={deleteVariableSet}
-        onSaveVariableSet={saveCurrentVariableSet}
-        onNewVariableSet={createNewVariableSet}
-        hasUnsavedChanges={hasUnsavedVariableChanges()}
-      />
-      
       <DocumentManager
         isOpen={showDocumentManager}
         onClose={() => setShowDocumentManager(false)}
         documentService={documentService}
         documentConfig={documentConfig}
+      />
+      
+      <MultiStepPromptManager
+        isOpen={showMultiStepManager}
+        onClose={() => setShowMultiStepManager(false)}
+        savedMultiStepPrompts={savedMultiStepPrompts}
+        currentMultiStepPromptId={currentMultiStepPromptId}
+        onLoadMultiStepPrompt={loadMultiStepPrompt}
+        onDeleteMultiStepPrompt={deleteMultiStepPrompt}
+        onSaveMultiStepPrompt={saveCurrentMultiStepPrompt}
+        onNewMultiStepPrompt={createNewMultiStepPrompt}
+        hasUnsavedChanges={hasUnsavedMultiStepChanges()}
       />
     </div>
   );

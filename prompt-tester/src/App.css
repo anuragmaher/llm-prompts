@@ -13,7 +13,26 @@ body {
   height: 100vh;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
-  gap: 1px;
+}
+
+.main-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  margin: 16px;
+  overflow: hidden;
+  gap: 16px;
+}
+
+.editor-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .left-panel {
@@ -76,6 +95,8 @@ body {
   background: rgba(255, 255, 255, 0.02);
   backdrop-filter: blur(20px);
   display: flex;
+  gap: 16px;
+  padding: 16px;
   transition: flex 0.3s ease;
 }
 
@@ -1400,4 +1421,101 @@ body {
   border-radius: 4px;
   font-size: 12px;
   color: #fbbf24;
+}
+
+/* Multi-step mode selector */
+.mode-selector {
+  display: flex;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  color: #a0a0a0;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.mode-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e4e6ea;
+}
+
+.mode-btn.active {
+  background: #007acc;
+  color: white;
+}
+
+/* Multi-step empty state */
+.multi-step-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.02);
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  gap: 24px;
+  min-height: 400px;
+}
+
+.multi-step-empty h2 {
+  color: #e4e6ea;
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0;
+  background: linear-gradient(135deg, #007acc 0%, #4dabf7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.multi-step-empty p {
+  color: #a0a0a0;
+  font-size: 18px;
+  margin: 0;
+  max-width: 500px;
+  line-height: 1.5;
+}
+
+.empty-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.multi-step-empty button {
+  padding: 16px 24px;
+  background: rgba(0, 122, 204, 0.1);
+  color: #007acc;
+  border: 2px solid rgba(0, 122, 204, 0.2);
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.multi-step-empty button:hover {
+  background: rgba(0, 122, 204, 0.2);
+  border-color: rgba(0, 122, 204, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 122, 204, 0.1);
 }

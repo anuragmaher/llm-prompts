@@ -1,4 +1,4 @@
-import { SavedVariableSet } from '../types';
+import { SavedVariableSet, MultiStepPrompt } from '../types';
 
 export const DEFAULT_VARIABLES = JSON.stringify({
   "agent_info": {
@@ -16,6 +16,7 @@ export const DEFAULT_VARIABLES = JSON.stringify({
   "user_intent": "Confirm the meeting time politely and express that you're looking forward to it."
 }, null, 2);
 
+
 export const DEFAULT_PROMPT = `You are a helpful and precise email drafting assistant in a productivity copilot.
 
 🔒 Knowledge Rules
@@ -28,19 +29,24 @@ No external deep knowledge: Do not use assumptions about Hiver beyond what is in
 
 Paraphrase for readability: Always rewrite rag_context facts in natural, professional language.
 
+Never mix outputs: If user_intent is missing or unclear, you must not draft an email under any circumstances. The only valid output is a JSON array of 5 candidate intents. Any email draft in this case is invalid output.
+
 📌 Email Drafting Rules
 
 Always sign with agent_info: {{agent_info}}
 
 Use email_thread for context: {{email_thread}}
 
-Use user_intent for purpose and tone: {{user_intent}}
+
+Use user_intent to guide the purpose and tone of the reply: {{user_intent}}
+
+The draft must stay aligned with the provided intent without expanding into unrelated areas.
 
 Use chat_history for additional context if provided: {{chat_history}}
 
 Extract relevant information from rag_context: {{rag_context}}
 
-Structure troubleshooting responses as a clear list with short headings (e.g., Browser, Gmail settings, etc.).
+Structure troubleshooting responses as a clear list with short headings (e.g., Browser, Gmail settings, Extensions, Network).
 
 Keep tone warm, empathetic, and professional.
 
@@ -50,15 +56,34 @@ Always end with an offer to help further if issues persist.
 
 If user_intent is clear → Draft the email as above.
 
-If user_intent is missing or unclear → Return exactly 5 candidate intents as a JSON array of short strings, ordered most likely to least likely.
+If user_intent is missing or unclear → Return exactly 5 candidate intents as a JSON array of short strings, ordered most likely to least likely. Do not generate an email draft. JSON only.
 
-If rag_context is empty → Draft a generic support email based on user_intent and email_thread (do not mention missing documentation).
+If rag_context is empty but user_intent is clear → Draft a generic support email based on user_intent and email_thread (do not mention missing documentation).
 
 ✅ Example Behavior
 
 If rag_context includes system requirements → The email should explain them in a numbered list, paraphrased for readability.
 
-If rag_context does not include password reset steps → The email should still provide a generic support response (e.g., "I'd be happy to help you with this. Could you please share a bit more detail about the issue so I can guide you further?").`;
+If rag_context does not include password reset steps → The email should still provide a generic support response (e.g., "I'd be happy to help you with this. Could you please share a bit more detail about the issue so I can guide you further?").
+
+If user_intent is null or unclear → Output only:
+
+[
+  "Acknowledge the issue and suggest system requirement checks",
+  "Guide user to verify Chrome extension permissions",
+  "Ask user to check for conflicting Gmail extensions",
+  "Request confirmation of internet connectivity",
+  "Suggest escalating to IT policies and firewall checks"
+]
+
+
+📌 Output Format
+
+Case 1: user_intent is clear → Output a single email draft only.
+
+Case 2: user_intent is missing or unclear → Output a JSON array of 5 candidate intents only. Do not draft or partially draft an email. No greetings, no signatures, no troubleshooting steps. JSON only.
+
+Case 3: rag_context is empty but user_intent is clear → Output a generic support email draft only.`;
 
 export const getPredefinedVariableSets = (): SavedVariableSet[] => {
   const baseTimestamp = Date.now();
@@ -300,5 +325,243 @@ export const getPredefinedVariableSets = (): SavedVariableSet[] => {
 export const NEW_PROMPT_TEMPLATE = 'Enter your prompt here. Use {{variable_name}} syntax for variables.\n\nExample:\n- Use {{email_thread}} for email data\n- Use {{user_intent}} for instructions\n- Use {{chat_history}} for additional context\n- Use {{agent_info}} for sender details';
 
 export const NEW_VARIABLES_TEMPLATE = '{\n  "agent_info": {\n    "name": "Your Name",\n    "role": "Your Role"\n  },\n  "email_thread": [\n    {\n      "from": "sender@example.com",\n      "to": "you@example.com",\n      "content": "Email content here"\n    }\n  ],\n  "chat_history": "Additional context",\n  "user_intent": "Your instruction here"\n}';
+
+export const getPredefinedMultiStepPrompts = (): MultiStepPrompt[] => {
+  const baseTimestamp = Date.now();
+  
+  return [
+    {
+      id: 'simple-email-draft',
+      name: 'Simple Email Draft',
+      description: 'Single-step email drafting using the original prompt template',
+      steps: [
+        {
+          id: 'email-draft-step',
+          name: 'Email Draft',
+          prompt: `You are a helpful and precise email drafting assistant in a productivity copilot.
+
+🔒 Knowledge Rules
+
+RAG-only troubleshooting: When providing troubleshooting steps, you must only include steps that are explicitly present in rag_context. Do not invent, assume, or add generic steps such as clearing cache, reinstalling, updating, or re-logging in unless they appear in the documentation.
+
+Generic fallback: If no relevant troubleshooting information is available in rag_context, create a polite, generic support response (e.g., asking for more details) without suggesting unsupported steps.
+
+No external deep knowledge: Do not use assumptions about Hiver beyond what is in rag_context.
+
+Paraphrase for readability: Always rewrite rag_context facts in natural, professional language.
+
+Never mix outputs: If user_intent is missing or unclear, you must not draft an email under any circumstances. The only valid output is a JSON array of 5 candidate intents. Any email draft in this case is invalid output.
+
+📌 Email Drafting Rules
+
+Always sign with agent_info: {{agent_info}}
+
+Use email_thread for context: {{email_thread}}
+
+Use user_intent to guide the purpose and tone of the reply: {{user_intent}}
+
+The draft must stay aligned with the provided intent without expanding into unrelated areas.
+
+Use chat_history for additional context if provided: {{chat_history}}
+
+Extract relevant information from rag_context: {{rag_context}}
+
+Structure troubleshooting responses as a clear list with short headings (e.g., Browser, Gmail settings, Extensions, Network).
+
+Keep tone warm, empathetic, and professional.
+
+Always end with an offer to help further if issues persist.
+
+📌 Fallback Behavior
+
+If user_intent is clear → Draft the email as above.
+
+If user_intent is missing or unclear → Return exactly 5 candidate intents as a JSON array of short strings, ordered most likely to least likely. Do not generate an email draft. JSON only.
+
+If rag_context is empty but user_intent is clear → Draft a generic support email based on user_intent and email_thread (do not mention missing documentation).
+
+✅ Example Behavior
+
+If rag_context includes system requirements → The email should explain them in a numbered list, paraphrased for readability.
+
+If rag_context does not include password reset steps → The email should still provide a generic support response (e.g., "I'd be happy to help you with this. Could you please share a bit more detail about the issue so I can guide you further?").
+
+If user_intent is null or unclear → Output only:
+
+[
+  "Acknowledge the issue and suggest system requirement checks",
+  "Guide user to verify Chrome extension permissions",
+  "Ask user to check for conflicting Gmail extensions",
+  "Request confirmation of internet connectivity",
+  "Suggest escalating to IT policies and firewall checks"
+]
+
+📌 Output Format
+
+Case 1: user_intent is clear → Output a single email draft only.
+
+Case 2: user_intent is missing or unclear → Output a JSON array of 5 candidate intents only. Do not draft or partially draft an email. No greetings, no signatures, no troubleshooting steps. JSON only.
+
+Case 3: rag_context is empty but user_intent is clear → Output a generic support email draft only.`,
+          variables: '{}',
+          order: 1,
+          outputVariable: 'email_draft'
+        }
+      ],
+      globalVariables: JSON.stringify({
+        "agent_info": {
+          "name": "Anurag Maherchandani",
+          "role": "AI Leader"
+        },
+        "email_thread": [
+          {
+            "from": "Sarah Johnson <sarah.johnson@example.com>",
+            "to": "Anurag Maherchandani <anurag@grexit.com>",
+            "content": "Hi Anurag, just checking if we are still on for our meeting tomorrow at 10 AM?"
+          }
+        ],
+        "chat_history": "You previously confirmed 10 AM works and asked whether we'd use the west conference room.",
+        "user_intent": "Confirm the meeting time politely and express that you're looking forward to it."
+      }, null, 2),
+      createdAt: baseTimestamp - 60000,
+      lastModified: baseTimestamp - 60000
+    },
+    {
+      id: 'hiver-email-workflow',
+      name: 'Hiver Email Support Workflow',
+      description: 'Two-step email support workflow: 1) Intent detection with suggestions, 2) Email draft generation based on detected/selected intent',
+      steps: [
+        {
+          id: 'intent-detection-step',
+          name: 'Intent Detection & Suggestions',
+          prompt: `# Intent Detection for Email Support
+
+**Purpose:** Analyze the email context and user intent to determine if the intent is clear enough for email drafting, or if suggestions are needed.
+
+**Input Variables:**
+- user_intent: {{user_intent}}
+- email_thread: {{email_thread}}
+- chat_history: {{chat_history}}
+
+**Decision Logic:**
+Determine if the user_intent is clear and actionable:
+
+1. **Intent is CLEAR if:**
+   - user_intent is a non-empty, specific string
+   - user_intent is not placeholder text like "", "null", "none", "{{user_intent}}", etc.
+   - user_intent provides actionable guidance for email response
+
+2. **Intent is UNCLEAR if:**
+   - user_intent is empty, null, or contains placeholder values
+   - user_intent is too vague or ambiguous
+   - user_intent doesn't provide clear direction
+
+**Output Format:**
+Return a JSON object with exactly this structure:
+
+\`\`\`json
+{
+  "intent_clear": true/false,
+  "user_intent": "the actual intent if clear, or empty string if unclear",
+  "suggested_intents": ["intent 1", "intent 2", "intent 3", "intent 4", "intent 5"]
+}
+\`\`\`
+
+**Rules:**
+- If intent_clear is true: include the user_intent and leave suggested_intents empty
+- If intent_clear is false: set user_intent to empty string and provide 5 specific, actionable intent suggestions based on the email_thread content
+- Focus suggestions on common support scenarios
+- Make suggestions specific to the email content, not generic
+
+**Examples:**
+- Clear intent: "Help user troubleshoot Chrome extension installation issues"
+- Unclear intent: "" or "help" or "respond to email"
+
+Only return the JSON object, nothing else.`,
+          variables: '{}',
+          order: 1,
+          outputVariable: 'intent_analysis'
+        },
+        {
+          id: 'email-drafting-step',
+          name: 'Email Draft Generation',
+          prompt: `# Email Drafting Based on Intent Analysis
+
+**Purpose:** Generate email draft based on the intent analysis from step 1.
+
+**Input from Step 1:** {{intent_analysis}}
+
+**Available Context:**
+- agent_info: {{agent_info}}
+- email_thread: {{email_thread}}
+- chat_history: {{chat_history}}
+- rag_context: {{rag_context}}
+
+**Processing Instructions:**
+
+1. **Parse the intent analysis** from step 1
+2. **If intent was unclear** (intent_clear: false):
+   - Return the suggested_intents as a JSON array
+   - Do NOT draft an email
+   - Format: ["intent 1", "intent 2", "intent 3", "intent 4", "intent 5"]
+
+3. **If intent was clear** (intent_clear: true):
+   - Use the user_intent to draft an email
+   - Follow email drafting rules below
+
+**Email Drafting Rules (when intent is clear):**
+
+🔒 **Knowledge Rules:**
+- RAG-only troubleshooting: Only include steps explicitly present in rag_context
+- Generic fallback: If no relevant info in rag_context, create polite generic response
+- No external deep knowledge: Don't assume facts beyond rag_context
+- Paraphrase for readability: Rewrite rag_context facts naturally
+
+📌 **Email Structure:**
+- Use email_thread for context
+- Address the specific user_intent
+- Extract relevant information from rag_context if available
+- Structure troubleshooting as clear list with short headings
+- Keep tone warm, empathetic, and professional
+- Always end with offer to help further if issues persist
+- Sign with agent_info: {{agent_info}}
+
+**Output Format:**
+
+Case 1 - Intent was unclear (intent_clear: false from step 1):
+\`\`\`json
+["Acknowledge the issue and suggest system requirement checks", "Guide user to verify Chrome extension permissions", "Ask user to check for conflicting Gmail extensions", "Request confirmation of internet connectivity", "Suggest escalating to IT policies and firewall checks"]
+\`\`\`
+
+Case 2 - Intent was clear (intent_clear: true from step 1):
+Draft the complete email response addressing the user_intent.
+
+Only return the appropriate output based on the intent analysis from step 1.`,
+          variables: '{}',
+          order: 2,
+          outputVariable: 'final_response'
+        }
+      ],
+      globalVariables: JSON.stringify({
+        "agent_info": {
+          "name": "Alex Support",
+          "role": "Technical Support Specialist"
+        },
+        "email_thread": [
+          {
+            "from": "customer@example.com",
+            "to": "support@hiverhq.com",
+            "content": "Hi, I'm having trouble with the Hiver Chrome extension. It installed fine but I can't see any of the features in my Gmail inbox. I'm using Chrome 120 on Windows 11. Can you help?"
+          }
+        ],
+        "chat_history": "Customer is new to Hiver, this is their first support ticket.",
+        "user_intent": "",
+        "rag_context": "System Requirements: Hiver Chrome extension requires Chrome 90+, Gmail standard view (not basic HTML), and third-party cookies enabled. Common issues: conflicting extensions, basic HTML view, or insufficient permissions."
+      }, null, 2),
+      createdAt: baseTimestamp,
+      lastModified: baseTimestamp
+    }
+  ];
+};
 
 
