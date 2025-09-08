@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { MultiStepPrompt, PromptStep } from './types';
+import GlobalVariablesModal from './GlobalVariablesModal';
 import './MultiStepPromptEditor.css';
 
 interface MultiStepPromptEditorProps {
@@ -23,6 +24,42 @@ const MultiStepPromptEditor: React.FC<MultiStepPromptEditorProps> = ({
 }) => {
   const [activeStepId, setActiveStepId] = useState<string>(multiStepPrompt.steps[0]?.id || '');
   const [draggedStepId, setDraggedStepId] = useState<string | null>(null);
+  const [showGlobalVariablesModal, setShowGlobalVariablesModal] = useState<boolean>(false);
+  const [hoveredVariable, setHoveredVariable] = useState<{key: string, value: any, position: {x: number, y: number}} | null>(null);
+
+  const handleVariableHover = useCallback((event: React.MouseEvent, key: string, value: any) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setHoveredVariable({
+      key,
+      value,
+      position: {
+        x: rect.left + rect.width / 2,
+        y: rect.top - 10
+      }
+    });
+  }, []);
+
+  const handleVariableLeave = useCallback(() => {
+    setHoveredVariable(null);
+  }, []);
+
+  const formatJsonValue = useCallback((value: any): string => {
+    if (typeof value === 'string') {
+      return `"${value}"`;
+    }
+    return JSON.stringify(value, null, 2);
+  }, []);
+
+  const highlightJsonValue = useCallback((jsonString: string): React.ReactElement => {
+    // Simple JSON syntax highlighting
+    const highlighted = jsonString
+      .replace(/(".*?")/g, '<span class="json-string">$1</span>')
+      .replace(/(\b\d+\.?\d*\b)/g, '<span class="json-number">$1</span>')
+      .replace(/(\btrue\b|\bfalse\b|\bnull\b)/g, '<span class="json-boolean">$1</span>')
+      .replace(/([{}[\],:])/g, '<span class="json-punctuation">$1</span>');
+    
+    return <span dangerouslySetInnerHTML={{ __html: highlighted }} />;
+  }, []);
 
   const updateMultiStepPrompt = useCallback((updates: Partial<MultiStepPrompt>) => {
     onMultiStepPromptChange({
@@ -215,13 +252,49 @@ const MultiStepPromptEditor: React.FC<MultiStepPromptEditorProps> = ({
           </div>
 
           <div className="global-variables">
-            <h4>Global Variables</h4>
-            <textarea
-              value={multiStepPrompt.globalVariables}
-              onChange={(e) => updateMultiStepPrompt({ globalVariables: e.target.value })}
-              placeholder="Global variables (JSON)"
-              rows={8}
-            />
+            <div className="global-variables-header">
+              <h4>Global Variables</h4>
+              <button
+                className="edit-variables-btn"
+                onClick={() => setShowGlobalVariablesModal(true)}
+                title="Edit Global Variables"
+              >
+                ⚙️ Edit
+              </button>
+            </div>
+            <div className="variables-preview">
+              {multiStepPrompt.globalVariables.trim() ? (
+                <div className="variables-summary">
+                  {(() => {
+                    try {
+                      const vars = JSON.parse(multiStepPrompt.globalVariables);
+                      const count = Object.keys(vars).length;
+                      return (
+                        <div>
+                          <span className="var-count">{count} variable{count !== 1 ? 's' : ''}</span>
+                          <div className="var-list">
+                            {Object.keys(vars).map(key => (
+                              <code 
+                                key={key} 
+                                className="variable-tag"
+                                onMouseEnter={(e) => handleVariableHover(e, key, vars[key])}
+                                onMouseLeave={handleVariableLeave}
+                              >
+                                {'{{' + key + '}}'}
+                              </code>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    } catch {
+                      return <span className="invalid-json">Invalid JSON format</span>;
+                    }
+                  })()}
+                </div>
+              ) : (
+                <div className="no-variables">No global variables defined</div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -274,6 +347,39 @@ const MultiStepPromptEditor: React.FC<MultiStepPromptEditorProps> = ({
           )}
         </div>
       </div>
+      
+      <GlobalVariablesModal
+        isOpen={showGlobalVariablesModal}
+        onClose={() => setShowGlobalVariablesModal(false)}
+        globalVariables={multiStepPrompt.globalVariables}
+        onGlobalVariablesChange={(variables) => updateMultiStepPrompt({ globalVariables: variables })}
+      />
+      
+      {hoveredVariable && (
+        <div 
+          className="variable-tooltip"
+          style={{
+            position: 'fixed',
+            left: hoveredVariable.position.x,
+            top: hoveredVariable.position.y,
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            pointerEvents: 'none'
+          }}
+        >
+          <div className="tooltip-arrow"></div>
+          <div className="tooltip-content">
+            <div className="tooltip-header">
+              <code className="tooltip-variable-name">{'{{' + hoveredVariable.key + '}}'}</code>
+            </div>
+            <div className="tooltip-value">
+              <pre className="json-highlight">
+                {highlightJsonValue(formatJsonValue(hoveredVariable.value))}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
